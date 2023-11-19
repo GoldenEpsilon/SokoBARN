@@ -66,7 +66,7 @@ pub fn setup_level(mut commands: Commands, sprites: Res<Sprites>){
             sprite: SpriteSheetBundle {
                 texture_atlas: sprites.sprites["Pig"].clone(),
                 sprite: TextureAtlasSprite::new(0),
-                transform: Transform::from_translation(Vec3 { x: 24.0 + 12.0, y: 24.0 , z: 0.0 }),
+                transform: Transform::from_translation(Vec3 { x: 24.0 + 12.0, y: 24.0 , z: 1.0 }),
                 ..default()
             }
         }

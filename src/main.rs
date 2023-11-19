@@ -4,8 +4,9 @@ mod menu;
 use crate::game::*;
 use crate::menu::*;
 use bevy::prelude::*;
-use bevy::render::camera::ScalingMode;
+//use bevy::render::camera::ScalingMode;
 use bevy::utils::HashMap;
+use bevy::window::PrimaryWindow;
 use bevy::window::WindowResized;
 
 #[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Hash, States)]
@@ -44,7 +45,7 @@ fn main() {
         .add_systems(OnExit(GameState::Menu), menu_cleanup)
 
         //Resize Sprites
-        //.add_systems(Update, resize_system)
+        .add_systems(Update, resize_system)
 
         //Gameplay
         .add_systems(OnEnter(GameState::Gameplay), setup_level)
@@ -54,10 +55,10 @@ fn main() {
 fn setup(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
-    mut texture_atlases: ResMut<Assets<TextureAtlas>>,
+    mut texture_atlases: ResMut<Assets<TextureAtlas>>
     ) {
     let mut camera_bundle = Camera2dBundle::default();
-    camera_bundle.projection.scaling_mode = ScalingMode::Fixed { width: 640.0, height: 360.0 };
+    //camera_bundle.projection.scaling_mode = ScalingMode::Fixed { width: 640.0, height: 360.0 };
     commands.spawn(camera_bundle);
 
 
@@ -69,13 +70,13 @@ fn setup(
     commands.insert_resource(Sprites { sprites: sprites });
 }
 
-/*fn resize_system(resize_event: Res<Events<WindowResized>>, mut objects: Query<(&mut Transform, &Location)>){
-    let mut reader = resize_event.get_reader();
-    for e in reader.iter(&resize_event) {
-        let size = (e.width/16.0).min(e.height/9.0)/24.0;
+fn resize_system(mut objects: Query<(&mut Transform, &Location)>,
+    windows: Query<&Window>){
+    for window in &windows {
+        let size = (window.width()/16.0).min(window.height()/9.0)/24.0;
         for (mut transform, location) in &mut objects {
             transform.scale = Vec3::splat(size);
-            transform.translation = Vec3{ x: (location.position.x*24.0+12.0)*size, y: location.position.y*24.0*size, z: 0.0 };
+            transform.translation = Vec3{ x: (location.position.x*24.0+12.0)*size, y: location.position.y*24.0*size, z: transform.translation.z };
         }
     }
-}*/
+}
