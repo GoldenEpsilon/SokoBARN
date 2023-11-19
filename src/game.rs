@@ -29,7 +29,7 @@ pub struct Tile;
 
 #[derive(Component)]
 pub struct Location {
-    pub position: Vec2
+    pub position: Vec3
 }
 
 pub fn setup_level(mut commands: Commands, sprites: Res<Sprites>){
@@ -42,12 +42,11 @@ pub fn setup_level(mut commands: Commands, sprites: Res<Sprites>){
                 TileBundle {
                     tile: Tile,
                     location: Location { 
-                        position: Vec2 { x: x, y: y }
+                        position: Vec3 { x: x, y: y, z: 0.0 }
                     },
                     sprite: SpriteSheetBundle {
                         texture_atlas: sprites.sprites["Grass"].clone(),
                         sprite: TextureAtlasSprite::new(0),
-                        transform: Transform::from_translation(Vec3 { x: x * 24.0 + 12.0, y: y * 24.0 , z: 0.0 }),
                         ..default()
                     }
                 }
@@ -61,7 +60,7 @@ pub fn setup_level(mut commands: Commands, sprites: Res<Sprites>){
         AnimalBundle {
             animal: Animal,
             location: Location { 
-                position: Vec2 { x: 1.0, y: 1.0 }
+                position: Vec3 { x: 1.0, y: 1.0, z: 0.0 }
             },
             sprite: SpriteSheetBundle {
                 texture_atlas: sprites.sprites["Pig"].clone(),
@@ -74,3 +73,4 @@ pub fn setup_level(mut commands: Commands, sprites: Res<Sprites>){
 
     commands.insert_resource(Field { tiles: tiles });
 }
+

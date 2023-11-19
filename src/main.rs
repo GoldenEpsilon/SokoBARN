@@ -63,20 +63,22 @@ fn setup(
 
 
     let mut sprites: HashMap<String, Handle<TextureAtlas>> = HashMap::new();
-    sprites.insert("Grass".to_owned(), texture_atlases.add(TextureAtlas::from_grid(asset_server.load("Grass.png"), Vec2::new(24.0, 24.0), 1, 1, None, None)));
-    sprites.insert("Chicken".to_owned(), texture_atlases.add(TextureAtlas::from_grid(asset_server.load("Chicken.png"), Vec2::new(24.0, 24.0), 1, 1, None, None)));
-    sprites.insert("Pig".to_owned(), texture_atlases.add(TextureAtlas::from_grid(asset_server.load("Pig.png"), Vec2::new(24.0, 24.0), 1, 1, None, None)));
-    sprites.insert("Horse".to_owned(), texture_atlases.add(TextureAtlas::from_grid(asset_server.load("Horse.png"), Vec2::new(24.0, 24.0), 1, 1, None, None)));
+    sprites.insert("Grass".to_owned(), texture_atlases.add(TextureAtlas::from_grid(asset_server.load("Grass.png"), Vec2::new(32.0, 32.0), 8, 1, None, None)));
+    sprites.insert("Chicken".to_owned(), texture_atlases.add(TextureAtlas::from_grid(asset_server.load("Chicken.png"), Vec2::new(28.0, 28.0), 3, 7, None, None)));
+    sprites.insert("Pig".to_owned(), texture_atlases.add(TextureAtlas::from_grid(asset_server.load("Pig.png"), Vec2::new(28.0, 28.0), 3, 7, None, None)));
+    sprites.insert("Horse".to_owned(), texture_atlases.add(TextureAtlas::from_grid(asset_server.load("Horse.png"), Vec2::new(28.0, 28.0), 3, 7, None, None)));
+    sprites.insert("Goat".to_owned(), texture_atlases.add(TextureAtlas::from_grid(asset_server.load("Goat.png"), Vec2::new(28.0, 28.0), 3, 7, None, None)));
     commands.insert_resource(Sprites { sprites: sprites });
 }
 
 fn resize_system(mut objects: Query<(&mut Transform, &Location)>,
     windows: Query<&Window>){
     for window in &windows {
-        let size = (window.width()/16.0).min(window.height()/9.0)/24.0;
+        let tile_size = 32.0;
+        let size = (window.width()/16.0).min(window.height()/9.0)/tile_size;
         for (mut transform, location) in &mut objects {
             transform.scale = Vec3::splat(size);
-            transform.translation = Vec3{ x: (location.position.x*24.0+12.0)*size, y: location.position.y*24.0*size, z: transform.translation.z };
+            transform.translation = Vec3{ x: (location.position.x*tile_size+tile_size/2.0)*size, y: location.position.y*tile_size*size, z: location.position.z };
         }
     }
 }
