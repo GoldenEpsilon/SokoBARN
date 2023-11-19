@@ -1,0 +1,14 @@
+[package]
+name = "sokobarn"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+bevy = "0.11"
+wasm-bindgen-test = "0.3"
+
+[target.wasm32-unknown-unknown]
+runner = "wasm-server-runner"
+
+[env]
+CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUNNER = "wasm-bindgen-test"
