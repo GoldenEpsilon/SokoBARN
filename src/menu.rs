@@ -12,6 +12,14 @@ pub struct MenuData {
 }
 
 pub fn menu_setup(mut commands: Commands, asset_server: Res<AssetServer>) {
+    let text_style = TextStyle {
+        font: asset_server.load("Fonts/MessyThicc.ttf"),
+        font_size: 20.0,
+        ..default()
+    };
+
+    let image = asset_server.load("UISign.png");
+    
     let button_entity = commands
         .spawn(NodeBundle {
             style: Style {
@@ -28,9 +36,9 @@ pub fn menu_setup(mut commands: Commands, asset_server: Res<AssetServer>) {
             parent
                 .spawn((ButtonBundle {
                     style: Style {
-                        width: Val::Px(150.0),
-                        height: Val::Px(65.0),
-                        border: UiRect::all(Val::Px(5.0)),
+                        width: Val::Px(160.0),
+                        height: Val::Px(32.0),
+                        //border: UiRect::all(Val::Px(5.0)),
                         // horizontally center child text
                         justify_content: JustifyContent::Center,
                         // vertically center child text
@@ -42,15 +50,26 @@ pub fn menu_setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                     ..default()
                 }, MenuButton{}))
                 .with_children(|parent| {
-                    parent.spawn(TextBundle::from_section(
-                        "Button",
-                        TextStyle {
-                            //font: asset_server.load("fonts/FiraSans-Bold.ttf"),
-                            font_size: 40.0,
-                            color: Color::rgb(0.9, 0.9, 0.9),
-                            ..default()
+                    parent.spawn(ImageBundle {
+                        image: UiImage::new(image.clone()),
+                        style: Style {
+                            width: Val::Px(160.0),
+                            height: Val::Px(32.0),
+                            // horizontally center child text
+                            justify_content: JustifyContent::Center,
+                            // vertically center child text
+                            align_items: AlignItems::Center,
+                            ..Default::default()
                         },
-                    ));
+                        background_color: Color::WHITE.into(),
+                        ..Default::default()
+                    })
+                    .with_children(|parent| {
+                        parent.spawn(TextBundle::from_section(
+                            "Button",
+                            text_style
+                        ));
+                    });
                 });
         }).id();
     commands.insert_resource(MenuData { button_entity });
@@ -62,30 +81,26 @@ pub fn button_system(
             &Interaction,
             &mut BackgroundColor,
             &mut BorderColor,
-            &Children
+            &mut Style
         ),
         (Changed<Interaction>, With<Button>),
     >,
     mut text_query: Query<&mut Text>,
     mut next_state: ResMut<NextState<GameState>>
 ) {
-    for (interaction, mut color, mut border_color, children) in &mut interaction_query {
+    for (interaction, mut color, mut border_color, mut style) in &mut interaction_query {
         println!("{:?}", interaction);
-        let mut text = text_query.get_mut(children[0]).unwrap();
         match *interaction {
             Interaction::Pressed => {
-                text.sections[0].value = "Press".to_string();
                 *color = BackgroundColor(Color::BLUE);
                 border_color.0 = Color::RED;
                 next_state.set(GameState::Gameplay);
             }
             Interaction::Hovered => {
-                text.sections[0].value = "Hover".to_string();
                 *color = BackgroundColor(Color::YELLOW);
                 border_color.0 = Color::WHITE;
             }
             Interaction::None => {
-                text.sections[0].value = "Button".to_string();
                 *color = BackgroundColor(Color::GREEN);
                 border_color.0 = Color::BLACK;
             }

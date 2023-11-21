@@ -49,6 +49,9 @@ fn main() {
 
         //Gameplay
         .add_systems(OnEnter(GameState::Gameplay), setup_level)
+
+        //Make fences connect
+        .add_systems(Update, fence_system.run_if(in_state(GameState::Gameplay)))
         .run();
 }
 
@@ -57,7 +60,7 @@ fn setup(
     asset_server: Res<AssetServer>,
     mut texture_atlases: ResMut<Assets<TextureAtlas>>
     ) {
-    let mut camera_bundle = Camera2dBundle::default();
+    let camera_bundle = Camera2dBundle::default();
     //camera_bundle.projection.scaling_mode = ScalingMode::Fixed { width: 640.0, height: 360.0 };
     commands.spawn(camera_bundle);
 
@@ -68,17 +71,31 @@ fn setup(
     sprites.insert("Pig".to_owned(), texture_atlases.add(TextureAtlas::from_grid(asset_server.load("Pig.png"), Vec2::new(28.0, 28.0), 3, 7, None, None)));
     sprites.insert("Horse".to_owned(), texture_atlases.add(TextureAtlas::from_grid(asset_server.load("Horse.png"), Vec2::new(28.0, 28.0), 3, 7, None, None)));
     sprites.insert("Goat".to_owned(), texture_atlases.add(TextureAtlas::from_grid(asset_server.load("Goat.png"), Vec2::new(28.0, 28.0), 3, 7, None, None)));
+    sprites.insert("Fence".to_owned(), texture_atlases.add(TextureAtlas::from_grid(asset_server.load("Fences.png"), Vec2::new(32.0, 32.0), 5, 1, None, None)));
     commands.insert_resource(Sprites { sprites: sprites });
+    
+    commands.spawn(AudioBundle {
+        source: asset_server.load("Music/contemplativealgorithmic_demo_1.ogg"),
+        ..default()
+    });
 }
 
-fn resize_system(mut objects: Query<(&mut Transform, &Location)>,
+fn resize_system(mut object_set: ParamSet<(
+        Query<(&mut Transform, &Location)>,
+        Query<(&mut Transform, &Tile)>)>,
     windows: Query<&Window>){
     for window in &windows {
         let tile_size = 32.0;
+        let tile_offset_x = 7.5;
+        let tile_offset_y = 4.0;
         let size = (window.width()/16.0).min(window.height()/9.0)/tile_size;
-        for (mut transform, location) in &mut objects {
+        for (mut transform, location) in &mut object_set.p0().iter_mut() {
             transform.scale = Vec3::splat(size);
-            transform.translation = Vec3{ x: (location.position.x*tile_size+tile_size/2.0)*size, y: location.position.y*tile_size*size, z: location.position.z };
+            transform.translation = Vec3{ x: ((location.x as f32 - tile_offset_x)*tile_size)*size, y: (location.y as f32 - tile_offset_y)*tile_size*size, z: location.z as f32 };
+        }
+        for (mut transform, tile) in &mut object_set.p1().iter_mut() {
+            transform.scale = Vec3::splat(size);
+            transform.translation = Vec3{ x: ((tile.location.x as f32 - tile_offset_x)*tile_size)*size, y: (tile.location.y as f32 - tile_offset_y)*tile_size*size, z: tile.location.z as f32 };
         }
     }
 }
