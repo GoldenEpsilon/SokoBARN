@@ -2,8 +2,6 @@ use crate::*;
 
 use bevy::prelude::*;
 
-use std::fs;
-
 
 #[derive(Component)]
 pub struct MenuButton{
@@ -15,6 +13,18 @@ pub struct MenuButton{
 #[derive(Resource)]
 pub struct MenuData {
     button_entities: Vec<Entity>,
+}
+
+#[derive(Resource)]
+pub struct SaveRes {
+    pub saving: SaveStage
+}
+
+#[derive(PartialEq)]
+pub enum SaveStage{
+    Idle,
+    Saving,
+    Loading
 }
 
 #[derive(PartialEq)]
@@ -146,6 +156,7 @@ pub fn button_system(
     >,
     mut next_state: ResMut<NextState<GameState>>,
     time: Res<Time>,
+    mut saving: ResMut<SaveRes>,
     mut app_exit_events: ResMut<Events<bevy::app::AppExit>>
 ) {
     for (interaction, mut menu_button) in &mut interaction_query {
@@ -154,8 +165,8 @@ pub fn button_system(
                 match menu_button.button_effect {
                     ButtonEffect::Start => {next_state.set(GameState::Gameplay);}
                     ButtonEffect::Quit => {app_exit_events.send(bevy::app::AppExit);}
-                    ButtonEffect::Save => {let _ = fs::write("foo.txt", b"");}
-                    ButtonEffect::Load => {let _ = fs::read("foo.txt");}
+                    ButtonEffect::Save => {saving.saving = SaveStage::Saving;}
+                    ButtonEffect::Load => {saving.saving = SaveStage::Loading;}
                     ButtonEffect::Settings => {}
                 }
             }
@@ -367,7 +378,7 @@ pub fn game_ui_setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                         text_style.to_owned()
                     ));
                     parent.spawn(TextBundle::from_section(
-                        "Level 1: The GOAT",
+                        "Level 1",
                         text_style.to_owned()
                     ));
                     parent.spawn(TextBundle::from_section(
