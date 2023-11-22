@@ -7,6 +7,7 @@ use bevy::audio::PlaybackMode;
 use bevy::prelude::*;
 use bevy::utils::HashMap;
 use bevy::window::PrimaryWindow;
+use bevy::window::WindowMode;
 
 static TILE_SIZE: f32 = 32.0;
 static ASPECT_RATIO_W: f32 = 16.0;
@@ -39,6 +40,7 @@ fn main() {
             primary_window: Some(Window {
                 // fill the entire window
                 fit_canvas_to_parent: true,
+                //resolution: (512., 288.).into(),
                 // don't hijack keyboard shortcuts like F5, F6, F12, Ctrl+R etc.
                 prevent_default_event_handling: false,
                 ..default()
@@ -49,7 +51,7 @@ fn main() {
 
         //Menus
         .add_systems(OnEnter(GameState::Menu), menu_setup)
-        .add_systems(Update, (button_system, button_update_system).run_if(in_state(GameState::Menu)))
+        .add_systems(Update, (button_system, button_update_system))
         .add_systems(OnExit(GameState::Menu), menu_cleanup)
 
 
@@ -83,6 +85,7 @@ fn setup(
     sprites.insert("Pig".to_owned(), texture_atlases.add(TextureAtlas::from_grid(asset_server.load("Sprites/Pig.png"), Vec2::new(28.0, 28.0), 3, 7, None, None)));
     sprites.insert("Horse".to_owned(), texture_atlases.add(TextureAtlas::from_grid(asset_server.load("Sprites/Horse.png"), Vec2::new(28.0, 28.0), 3, 7, None, None)));
     sprites.insert("Goat".to_owned(), texture_atlases.add(TextureAtlas::from_grid(asset_server.load("Sprites/Goat.png"), Vec2::new(28.0, 28.0), 3, 7, None, None)));
+    sprites.insert("Wagon".to_owned(), texture_atlases.add(TextureAtlas::from_grid(asset_server.load("Sprites/Cart.png"), Vec2::new(28.0, 28.0), 3, 7, None, None)));
     sprites.insert("Fence".to_owned(), texture_atlases.add(TextureAtlas::from_grid(asset_server.load("Sprites/Fences.png"), Vec2::new(32.0, 32.0), 5, 1, None, None)));
     sprites.insert("Rocks".to_owned(), texture_atlases.add(TextureAtlas::from_grid(asset_server.load("Sprites/Rocks.png"), Vec2::new(32.0, 32.0), 4, 4, None, None)));
     sprites.insert("Mud".to_owned(), texture_atlases.add(TextureAtlas::from_grid(asset_server.load("Sprites/Mud.png"), Vec2::new(32.0, 32.0), 4, 4, None, None)));
@@ -118,11 +121,11 @@ fn resize_system(mut object_set: ParamSet<(
         let size = (window.width()/ASPECT_RATIO_W).min(window.height()/ASPECT_RATIO_H)/TILE_SIZE;
         for (mut transform, location) in &mut object_set.p0().iter_mut() {
             transform.scale = Vec3::splat(size);
-            transform.translation = Vec3{ x: ((location.x as f32 - TILE_OFFSET_X)*TILE_SIZE)*size, y: (location.y as f32 - TILE_OFFSET_Y)*TILE_SIZE*size, z: location.z as f32 };
+            transform.translation = Vec3{ x: ((location.x as f32 - TILE_OFFSET_X)*TILE_SIZE)*size, y: (location.y as f32 - TILE_OFFSET_Y)*TILE_SIZE*size, z: -(location.y as f32) + location.z as f32 };
         }
         for (mut transform, tile) in &mut object_set.p1().iter_mut() {
             transform.scale = Vec3::splat(size);
-            transform.translation = Vec3{ x: ((tile.location.x as f32 - TILE_OFFSET_X)*TILE_SIZE)*size, y: (tile.location.y as f32 - TILE_OFFSET_Y)*TILE_SIZE*size, z: tile.location.z as f32 };
+            transform.translation = Vec3{ x: ((tile.location.x as f32 - TILE_OFFSET_X)*TILE_SIZE)*size, y: (tile.location.y as f32 - TILE_OFFSET_Y)*TILE_SIZE*size, z: -(tile.location.y as f32) + tile.location.z as f32 };
         }
         for mut transform in &mut object_set.p2().iter_mut() {
             transform.scale = Vec3::splat(size);

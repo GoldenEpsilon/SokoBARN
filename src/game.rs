@@ -11,18 +11,58 @@ struct AnimalBundle {
 }
 
 #[derive(Bundle)]
+struct FoodBundle {
+    food: Food,
+    location: Location,
+    sprite: SpriteSheetBundle,
+}
+
+#[derive(Bundle)]
+struct WagonBundle {
+    wagon: Wagon,
+    location: Location,
+    sprite: SpriteSheetBundle,
+}
+
+#[derive(Bundle)]
 struct TileBundle {
     tile: Tile,
     sprite: SpriteSheetBundle,
 }
 
 #[derive(Component)]
-pub struct Animal;
+pub struct Animal {
+    animal_type: EntityType
+}
+
+#[derive(Component)]
+pub struct Food {
+    food_type: EntityType
+}
+
+#[derive(Component)]
+pub struct Wagon;
 
 #[derive(Component)]
 pub struct Tile {
     pub tile_type: TileType,
     pub location: Location,
+}
+
+#[derive(PartialEq)]
+#[derive(Clone, Copy)]
+pub enum EntityType {
+    Chicken,
+    Horse,
+    Pig,
+    Goat,
+    WagonAnimal,
+    ChickenFood,
+    HorseFood,
+    PigFood,
+    AllFood,
+    WagonFood,
+    Wagon,
 }
 
 #[derive(PartialEq)]
@@ -48,8 +88,7 @@ pub struct Location {
 
 #[derive(Resource)]
 pub struct Field {
-    pub tiles: Vec<Vec<Entity>>,
-    pub objects: Vec<Vec<Option<Entity>>>,
+    pub tiles: Vec<Vec<(Entity, Option<Entity>)>>,
     pub cursor: Entity
 }
 
@@ -62,7 +101,7 @@ impl Field {
             tiles.push(vec![]);
             let mut y = 0;
             while y < height {
-                tiles[x].push(commands.spawn(
+                tiles[x].push((commands.spawn(
                     TileBundle {
                         tile: Tile { tile_type: TileType::Grass,
                             location: Location { 
@@ -78,12 +117,11 @@ impl Field {
                             ..default()
                         }
                     }
-                ).id());
+                ).id(), None));
                 y += 1;
             }
             x += 1;
         }
-        let objects = vec![vec![None; height]; width];
 
         let cursor = commands.spawn(
             SpriteSheetBundle {
@@ -91,7 +129,7 @@ impl Field {
                 sprite: TextureAtlasSprite::new(2),
                 ..default()
             }).id();
-        let field = Field { tiles, objects, cursor };
+        let field = Field { tiles, cursor };
         return field;
     }
 
@@ -104,7 +142,7 @@ impl Field {
 
     pub fn get_tile_type(&self, x: usize, y: usize, q_tile: Query<&Tile>) -> Option<TileType> {
         if self.can_get_tile(x, y) {
-            if let Ok(tile) = q_tile.get(self.tiles[x][y]) {
+            if let Ok(tile) = q_tile.get(self.tiles[x][y].0) {
                 return Some(tile.tile_type);
             }
         }
@@ -113,10 +151,10 @@ impl Field {
 
     pub fn set_tile(&mut self, commands: &mut Commands, sprites: &Res<Sprites>, tile_type: TileType, index: usize, x: usize, y: usize){
         if self.can_get_tile(x, y) {
-            commands.entity(self.tiles[x][y]).despawn_recursive();
+            commands.entity(self.tiles[x][y].0).despawn_recursive();
             match tile_type {
                 TileType::Grass => {
-                    self.tiles[x][y] = commands.spawn(
+                    self.tiles[x][y].0 = commands.spawn(
                         TileBundle {
                             tile: Tile { tile_type: TileType::Grass,
                                 location: Location { 
@@ -138,7 +176,7 @@ impl Field {
                     self.spawn_fence(commands, &sprites, index, x, y);
                 }
                 TileType::Mud => {
-                    self.tiles[x][y] = commands.spawn(
+                    self.tiles[x][y].0 = commands.spawn(
                         TileBundle {
                             tile: Tile { tile_type: TileType::Mud,
                                 location: Location { 
@@ -150,14 +188,14 @@ impl Field {
                             },
                             sprite: SpriteSheetBundle {
                                 texture_atlas: sprites.sprites["Mud"].clone(),
-                                sprite: TextureAtlasSprite::new(6),
+                                sprite: TextureAtlasSprite::new(5 + (x % 2) + 4 * (y % 2)),
                                 ..default()
                             }
                         }
                     ).id()
                 }
                 TileType::Rocks => {
-                    self.tiles[x][y] = commands.spawn(
+                    self.tiles[x][y].0 = commands.spawn(
                         TileBundle {
                             tile: Tile { tile_type: TileType::Rocks,
                                 location: Location { 
@@ -169,14 +207,14 @@ impl Field {
                             },
                             sprite: SpriteSheetBundle {
                                 texture_atlas: sprites.sprites["Rocks"].clone(),
-                                sprite: TextureAtlasSprite::new(6),
+                                sprite: TextureAtlasSprite::new(5 + (x % 2) + 4 * (y % 2)),
                                 ..default()
                             }
                         }
                     ).id()
                 }
                 TileType::Corral => {
-                    self.tiles[x][y] = commands.spawn(
+                    self.tiles[x][y].0 = commands.spawn(
                         TileBundle {
                             tile: Tile { tile_type: TileType::Corral,
                                 location: Location { 
@@ -216,10 +254,92 @@ impl Field {
             }
         }
     }
+
+    pub fn add_entity(&mut self, commands: &mut Commands, sprites: &Res<Sprites>, entity_type: EntityType, x: usize, y: usize){
+        if self.can_get_tile(x, y) {
+            if let Some(old_entity) = self.tiles[x][y].1 {
+                commands.entity(old_entity).despawn_recursive();
+            }
+            match entity_type {
+                EntityType::Chicken | EntityType::Horse | EntityType::Pig | EntityType::Goat | EntityType::WagonAnimal => {
+                    commands.spawn(
+                        AnimalBundle {
+                            animal: Animal { animal_type: entity_type },
+                            location: Location { 
+                                x: 2,
+                                y: 0,
+                                z: 2,
+                                offset: Vec3::splat(0.0)
+                            },
+                            sprite: SpriteSheetBundle {
+                                texture_atlas: sprites.sprites[
+                                    match entity_type {
+                                        EntityType::Chicken => {"Chicken"}
+                                        EntityType::Horse => {"Horse"}
+                                        EntityType::Pig => {"Pig"}
+                                        EntityType::Goat => {"Goat"}
+                                        EntityType::WagonAnimal => {"Wagon"}
+                                        _ => {"Chicken"}
+                                    }
+                                ].clone(),
+                                sprite: TextureAtlasSprite::new(0),
+                                ..default()
+                            }
+                        }
+                    );
+                }
+                EntityType::ChickenFood | EntityType::HorseFood | EntityType::PigFood | EntityType::AllFood | EntityType::WagonFood => {
+                    commands.spawn(
+                        FoodBundle {
+                            food: Food { food_type: entity_type },
+                            location: Location { 
+                                x: 2,
+                                y: 0,
+                                z: 2,
+                                offset: Vec3::splat(0.0)
+                            },
+                            sprite: SpriteSheetBundle {
+                                texture_atlas: sprites.sprites["Food"].clone(),
+                                sprite: TextureAtlasSprite::new(
+                                    match entity_type {
+                                        EntityType::ChickenFood => {0}
+                                        EntityType::HorseFood => {1}
+                                        EntityType::PigFood => {2}
+                                        EntityType::AllFood => {3}
+                                        EntityType::WagonFood => {4}
+                                        _ => {3}
+                                    }
+                                ),
+                                ..default()
+                            }
+                        }
+                    );
+                }
+                EntityType::Wagon => {
+                    commands.spawn(
+                        WagonBundle {
+                            wagon: Wagon,
+                            location: Location { 
+                                x: 2,
+                                y: 0,
+                                z: 2,
+                                offset: Vec3::splat(0.0)
+                            },
+                            sprite: SpriteSheetBundle {
+                                texture_atlas: sprites.sprites["Wagon"].clone(),
+                                sprite: TextureAtlasSprite::new(0),
+                                ..default()
+                            }
+                        }
+                    );
+                }
+            }
+        }
+    }
     
     fn spawn_fence(&mut self, commands: &mut Commands, sprites: &Res<Sprites>, index: usize, x: usize, y: usize){
         if self.can_get_tile(x, y) {
-            self.tiles[x][y] = commands.spawn((
+            self.tiles[x][y].0 = commands.spawn((
                 TileBundle {
                     tile: Tile { 
                         tile_type: TileType::Fence,
@@ -321,22 +441,7 @@ pub fn setup_level(mut commands: Commands, sprites: Res<Sprites>){
         x += 1;
     }
 
-    commands.spawn(
-        AnimalBundle {
-            animal: Animal,
-            location: Location { 
-                x: 2,
-                y: 0,
-                z: 2,
-                offset: Vec3::splat(0.0)
-            },
-            sprite: SpriteSheetBundle {
-                texture_atlas: sprites.sprites["Goat"].clone(),
-                sprite: TextureAtlasSprite::new(0),
-                ..default()
-            }
-        }
-    );
+    
 
     /*field.set_tile(&mut commands, &sprites, TileType::Fence, 0, 5, 5);
     field.set_tile(&mut commands, &sprites, TileType::Fence, 1, 5, 4);
@@ -356,28 +461,28 @@ pub fn fence_system(field: ResMut<Field>, fences: Query<(&Children, &Tile), With
                         let locy = tile.location.y;
                         *visibility = match sprite.index {
                             0 => {
-                                if locy > 0 && field.can_get_tile(locx, locy - 1) && fences.contains(field.tiles[locx][locy - 1]) {
+                                if locy > 0 && field.can_get_tile(locx, locy - 1) && fences.contains(field.tiles[locx][locy - 1].0) {
                                     Visibility::Visible
                                 } else {
                                     Visibility::Hidden
                                 }
                             }
                             1 => {
-                                if field.can_get_tile(locx, locy + 1) && fences.contains(field.tiles[locx][locy + 1]) {
+                                if field.can_get_tile(locx, locy + 1) && fences.contains(field.tiles[locx][locy + 1].0) {
                                     Visibility::Visible
                                 } else {
                                     Visibility::Hidden
                                 }
                             }
                             2 => {
-                                if locx > 0 && field.can_get_tile(locx - 1, locy) && fences.contains(field.tiles[locx - 1][locy]) {
+                                if locx > 0 && field.can_get_tile(locx - 1, locy) && fences.contains(field.tiles[locx - 1][locy].0) {
                                     Visibility::Visible
                                 } else {
                                     Visibility::Hidden
                                 }
                             }
                             3 => {
-                                if field.can_get_tile(locx + 1, locy) && fences.contains(field.tiles[locx + 1][locy]) {
+                                if field.can_get_tile(locx + 1, locy) && fences.contains(field.tiles[locx + 1][locy].0) {
                                     Visibility::Visible
                                 } else {
                                     Visibility::Hidden
@@ -393,113 +498,6 @@ pub fn fence_system(field: ResMut<Field>, fences: Query<(&Children, &Tile), With
     }
 }
 
-pub fn game_ui_setup(mut commands: Commands, asset_server: Res<AssetServer>) {
-
-    let text_style = TextStyle {
-        font: asset_server.load("Fonts/MessyThicc.ttf"),
-        font_size: 20.0,
-        ..default()
-    };
-
-    let image = asset_server.load("UISign.png");
-    
-    commands.spawn(NodeBundle {
-        style: Style {
-            width: Val::Percent(100.0),
-            height: Val::Percent(100.0),
-            align_items: AlignItems::Center,
-            justify_content: JustifyContent::Center,
-            ..default()
-        },
-        ..default()
-    }
-    )
-    .with_children(|parent| {
-        parent.spawn(ButtonBundle {
-            style: Style {
-                width: Val::Px(TILE_SIZE*2.0),
-                height: Val::Px(TILE_SIZE*ASPECT_RATIO_H),
-                left: Val::Px(TILE_SIZE*ASPECT_RATIO_W/2.0 - TILE_SIZE*1.0),
-                // horizontally center child text
-                justify_content: JustifyContent::Center,
-                // vertically center child text
-                align_items: AlignItems::Center,
-                ..default()
-            },
-            background_color: Color::NONE.into(),
-            ..default()
-        })
-        .with_children(|parent| {
-            parent.spawn(ImageBundle {
-                image: UiImage::new(image.clone()),
-                style: Style {
-                    width: Val::Percent(100.0),
-                    height: Val::Percent(100.0),
-                    // horizontally center child text
-                    justify_content: JustifyContent::Center,
-                    // vertically center child text
-                    align_items: AlignItems::Center,
-                    position_type: PositionType::Absolute,
-                    ..Default::default()
-                },
-                background_color: Color::WHITE.into(),
-                ..Default::default()
-            });
-            parent.spawn(ButtonBundle {
-                style: Style {
-                    width: Val::Px(TILE_SIZE*(ASPECT_RATIO_W - 2.0)),
-                    height: Val::Px(TILE_SIZE*1.0),
-                    top: Val::Px(TILE_SIZE*ASPECT_RATIO_H - TILE_SIZE*1.0),
-                    left: Val::Px(-TILE_SIZE*(ASPECT_RATIO_W - 2.0)),
-                    justify_content: JustifyContent::Center,
-                    align_items: AlignItems::Center,
-                    position_type: PositionType::Absolute,
-                    ..default()
-                },
-                background_color: Color::NONE.into(),
-                ..default()
-            })
-            .with_children(|parent| {
-                parent.spawn(ImageBundle {
-                    image: UiImage::new(image.clone()),
-                    style: Style {
-                        width: Val::Percent(100.0),
-                        height: Val::Percent(100.0),
-                        display: Display::Grid,
-                        grid_template_columns: vec![GridTrack::auto(), GridTrack::flex(1.0), GridTrack::auto(), GridTrack::flex(1.0), GridTrack::auto()],
-                        justify_content: JustifyContent::Center,
-                        align_items: AlignItems::Center,
-                        ..Default::default()
-                    },
-                    background_color: Color::WHITE.into(),
-                    ..Default::default()
-                }).with_children(|parent| {
-                    parent.spawn(TextBundle::from_section(
-                        " O",
-                        text_style.to_owned()
-                    ));
-                    parent.spawn(TextBundle::from_section(
-                        "",
-                        text_style.to_owned()
-                    ));
-                    parent.spawn(TextBundle::from_section(
-                        "Level 1: The GOAT",
-                        text_style.to_owned()
-                    ));
-                    parent.spawn(TextBundle::from_section(
-                        "",
-                        text_style.to_owned()
-                    ));
-                    parent.spawn(TextBundle::from_section(
-                        "START ",
-                        text_style.to_owned()
-                    ));
-                });
-            });
-        });
-    });
-}
-
 pub fn mouse_controls(
     mut commands: Commands, 
     sprites: Res<Sprites>,
@@ -513,7 +511,7 @@ pub fn mouse_controls(
         let tile = Vec2{ x: position.x / TILE_SIZE / ui_scale.scale as f32 - ASPECT_RATIO_W / 2.0, y: ASPECT_RATIO_H / 2.0 - position.y / TILE_SIZE / ui_scale.scale as f32};
         let tile_pos_x = (tile.x + TILE_OFFSET_X).round() as usize;
         let tile_pos_y = (tile.y + TILE_OFFSET_Y).round() as usize;
-        if field.can_get_tile(tile_pos_x, tile_pos_y) {
+        if (tile.x + TILE_OFFSET_X).round() >= 0.0 && (tile.y + TILE_OFFSET_Y).round() >= 0.0 && field.can_get_tile(tile_pos_x, tile_pos_y) {
             if buttons.just_pressed(MouseButton::Left) {
                 match field.get_tile_type(tile_pos_x, tile_pos_y, q_tile) {
                     Some(TileType::Grass) => {field.set_tile(&mut commands, &sprites, TileType::Fence, 3, tile_pos_x, tile_pos_y);}
