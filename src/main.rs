@@ -1,13 +1,14 @@
 mod game;
 mod menu;
+mod simulation;
 
 use crate::game::*;
 use crate::menu::*;
+use crate::simulation::*;
 use bevy::audio::PlaybackMode;
 use bevy::prelude::*;
 use bevy::utils::HashMap;
 use bevy::window::PrimaryWindow;
-use bevy::window::WindowMode;
 
 static TILE_SIZE: f32 = 32.0;
 static ASPECT_RATIO_W: f32 = 16.0;
@@ -61,9 +62,10 @@ fn main() {
         //Gameplay
         .add_systems(OnEnter(GameState::Gameplay), (setup_level, game_ui_setup))
         .add_systems(Update, saving_system.run_if(in_state(GameState::Gameplay)))
+        .add_systems(Update, simulate.run_if(in_state(GameState::Gameplay)))
 
         //Cursor Controls
-        .add_systems(Update, mouse_controls.run_if(in_state(GameState::Gameplay)))
+        .add_systems(Update, (mouse_controls, apply_deferred).chain().run_if(in_state(GameState::Gameplay)))
 
         //Post Update Visuals
         .add_systems(PostUpdate, (fence_system.run_if(in_state(GameState::Gameplay)), resize_system, apply_deferred).chain())
@@ -77,6 +79,7 @@ fn setup(
     ) {
 
     commands.insert_resource(SaveRes { saving: SaveStage::Idle });
+    commands.insert_resource(SimulateRes { simulating: false });
 
     let camera_bundle = Camera2dBundle::default();
     //camera_bundle.projection.scaling_mode = ScalingMode::Fixed { width: 640.0, height: 360.0 };
@@ -84,7 +87,7 @@ fn setup(
 
 
     let mut sprites: HashMap<String, Handle<TextureAtlas>> = HashMap::new();
-    sprites.insert("Grass".to_owned(), texture_atlases.add(TextureAtlas::from_grid(asset_server.load("Sprites/Grass.png"), Vec2::new(32.0, 32.0), 8, 1, None, None)));
+    sprites.insert("Grass".to_owned(), texture_atlases.add(TextureAtlas::from_grid(asset_server.load("Sprites/Grass.png"), Vec2::new(32.0, 32.0), 2, 2, None, None)));
     sprites.insert("Chicken".to_owned(), texture_atlases.add(TextureAtlas::from_grid(asset_server.load("Sprites/Chicken.png"), Vec2::new(28.0, 28.0), 3, 7, None, None)));
     sprites.insert("Pig".to_owned(), texture_atlases.add(TextureAtlas::from_grid(asset_server.load("Sprites/Pig.png"), Vec2::new(28.0, 28.0), 3, 7, None, None)));
     sprites.insert("Horse".to_owned(), texture_atlases.add(TextureAtlas::from_grid(asset_server.load("Sprites/Horse.png"), Vec2::new(28.0, 28.0), 3, 7, None, None)));
@@ -95,6 +98,7 @@ fn setup(
     sprites.insert("Rocks".to_owned(), texture_atlases.add(TextureAtlas::from_grid(asset_server.load("Sprites/Rocks.png"), Vec2::new(64.0, 64.0), 2, 2, None, None)));
     sprites.insert("Mud".to_owned(), texture_atlases.add(TextureAtlas::from_grid(asset_server.load("Sprites/Mud.png"), Vec2::new(64.0, 64.0), 2, 2, None, None)));
     sprites.insert("MuddyRocks".to_owned(), texture_atlases.add(TextureAtlas::from_grid(asset_server.load("Sprites/MuddyRocks.png"), Vec2::new(64.0, 64.0), 2, 2, None, None)));
+    sprites.insert("Ditch".to_owned(), texture_atlases.add(TextureAtlas::from_grid(asset_server.load("Sprites/Ditches.png"), Vec2::new(32.0, 32.0), 8, 2, None, None)));
     sprites.insert("Pens".to_owned(), texture_atlases.add(TextureAtlas::from_grid(asset_server.load("Sprites/Pens.png"), Vec2::new(48.0, 48.0), 5, 3, None, None)));
     sprites.insert("Cursor".to_owned(), texture_atlases.add(TextureAtlas::from_grid(asset_server.load("Sprites/Cursor.png"), Vec2::new(64.0, 64.0), 5, 1, None, None)));
 
