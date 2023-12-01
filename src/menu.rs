@@ -60,7 +60,12 @@ pub enum ButtonEffect{
     UnPause,
 }
 
-pub fn menu_setup(mut commands: Commands, asset_server: Res<AssetServer>) {
+pub fn menu_setup(mut commands: Commands, asset_server: Res<AssetServer>, mut keyart_q: Query<&mut Visibility, With<KeyArt>>) {
+
+    if let Ok(mut visibility) = keyart_q.get_single_mut() {
+        *visibility = Visibility::Visible;
+    }
+
     let text_style = TextStyle {
         font: asset_server.load("Fonts/MessyThicc.ttf"),
         font_size: 20.0,
@@ -459,6 +464,50 @@ pub fn level_select_setup(mut commands: Commands, asset_server: Res<AssetServer>
                     ));
                 });
             });
+        })
+        .with_children(|parent| {
+            parent.spawn((ButtonBundle {
+                style: Style {
+                    width: Val::Px(160.0),
+                    height: Val::Px(32.0),
+                    //border: UiRect::all(Val::Px(5.0)),
+                    // horizontally center child text
+                    justify_content: JustifyContent::Center,
+                    // vertically center child text
+                    align_items: AlignItems::Center,
+                    margin: UiRect::bottom(Val::Px(10.0)),
+                    ..default()
+                },
+                background_color: Color::NONE.into(),
+                ..default()
+            }, 
+            MenuButton{
+                button_effect: ButtonEffect::Play,
+                pickup_object: EntityType::None,
+                level: "Levels/blank.skb".to_owned(),
+                hovering: false, 
+                hover_time: 0.0
+            }))
+            .with_children(|parent| {
+                parent.spawn(ImageBundle {
+                    image: UiImage::new(image.clone()),
+                    style: Style {
+                        width: Val::Percent(100.0),
+                        height: Val::Percent(100.0),
+                        justify_content: JustifyContent::Center,
+                        align_items: AlignItems::Center,
+                        ..Default::default()
+                    },
+                    background_color: Color::WHITE.into(),
+                    ..Default::default()
+                })
+                .with_children(|parent| {
+                    parent.spawn(TextBundle::from_section(
+                        "Editor",
+                        text_style.to_owned()
+                    ));
+                });
+            });
         }).id()];
 }
 
@@ -663,7 +712,15 @@ pub fn pause_menu_setup(mut commands: Commands, asset_server: Res<AssetServer>, 
         }).id()];
 }
 
-pub fn game_ui_setup(mut commands: Commands, asset_server: Res<AssetServer>, sprites: Res<Sprites>, mut menu_data: ResMut<MenuData>) {
+pub fn game_ui_setup(mut commands: Commands, 
+    asset_server: Res<AssetServer>, 
+    sprites: Res<Sprites>, 
+    mut menu_data: ResMut<MenuData>,
+    mut keyart_q: Query<&mut Visibility, With<KeyArt>>) {
+
+    if let Ok(mut visibility) = keyart_q.get_single_mut() {
+        *visibility = Visibility::Hidden;
+    }
 
     let text_style = TextStyle {
         font: asset_server.load("Fonts/MessyThicc.ttf"),
@@ -1255,8 +1312,12 @@ pub fn pause_menu_cleanup(
 pub fn game_cleanup(
     mut commands: Commands,
     field: Res<Field>,
-    menu_data: Res<MenuData>
+    menu_data: Res<MenuData>,
+    mut q_cursor: Query<&mut Cursor>, 
 ) {
+    if let Ok(mut cursor) = q_cursor.get_single_mut() {
+        cursor.holding = EntityType::None;
+    }
     for entity in &menu_data.button_entities {
         commands.entity(*entity).despawn_recursive();
     }

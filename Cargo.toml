@@ -9,6 +9,9 @@ wasm-bindgen-test = "0.3"
 serde = "1.0"
 serde_json = "1.0"
 bevy_common_assets = {version = "0.7", features = ["json"] }
+rand_core = "0.6"
+bevy_rand = "0.3"
+bevy_prng = { version = "0.1", features = ["rand_chacha"] }
 
 [target.wasm32-unknown-unknown]
 runner = "wasm-server-runner"
