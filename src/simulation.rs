@@ -9,6 +9,7 @@ pub fn simulate(
     time: Res<Time>,
     mut simulating: ResMut<SimulateRes>,
     mut entity_q: Query<&mut GameEntity>,
+    mut saving: ResMut<SaveRes>,
     tile_q: Query<&Tile>,){
     if simulating.simulating {
         field.simulate_timer.tick(time.delta());
@@ -65,9 +66,19 @@ pub fn simulate(
                     }
                     _ => {}
                 }
+                let mut state = entity.state;
+                if entity.state == EntityState::Special {
+                    state = match entity.entity_type {
+                        EntityType::Chicken => {EntityState::Walking}
+                        EntityType::Pig => {EntityState::Idle}
+                        EntityType::Horse => {EntityState::Idle}
+                        EntityType::Goat => {EntityState::Idle}
+                        _ => {entity.state}
+                    };
+                }
                 match entity.entity_type {
                     EntityType::Chicken | EntityType::Pig | EntityType::Horse | EntityType::Goat => {
-                        match entity.state {
+                        match state {
                             EntityState::Idle => {
                                 let target_location = field.can_see_food(entity, &entity_q.to_readonly(), &tile_q);
                                 if target_location.x != entity.target_location.x || target_location.y != entity.target_location.y {
@@ -111,6 +122,7 @@ pub fn simulate(
         }
         if !simulating.simulating {
             println!("Simulation Over!");
+            saving.saving = SaveStage::SaveUndo;
         }
     }
 }

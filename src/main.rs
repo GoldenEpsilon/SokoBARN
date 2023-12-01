@@ -112,7 +112,7 @@ fn setup(
     mut texture_atlases: ResMut<Assets<TextureAtlas>>
     ) {
 
-    commands.insert_resource(SaveRes { saving: SaveStage::Idle, save: "level.skb".to_owned() });
+    commands.insert_resource(SaveRes { saving: SaveStage::Idle, save: "level.skb".to_owned(), quicksaves: vec![] });
     commands.insert_resource(SimulateRes { simulating: false, rounds: 1 });
     commands.insert_resource(MenuData { button_entities: vec![] });
     commands.insert_resource(PauseMenuData { button_entities: vec![] });
@@ -283,7 +283,7 @@ pub fn animation_system(
     for (mut sprite, mut timer, entity) in &mut q_entities {
         timer.tick(time.delta());
         if timer.just_finished() {
-            sprite.index = (sprite.index + 1) % 
+            sprite.index = std::cmp::min((sprite.index + 1) % 4, 
             match entity.state {
                 EntityState::Idle => {2}
                 EntityState::Walking => {4}
@@ -301,7 +301,7 @@ pub fn animation_system(
                 EntityState::Celebrating => {5}
                 EntityState::Special => {6}
                 EntityState::Failure => {2}
-            };
+            });
         }
     }
 }

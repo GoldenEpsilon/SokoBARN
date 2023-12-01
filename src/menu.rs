@@ -31,14 +31,17 @@ pub struct PauseMenuData {
 #[derive(Resource)]
 pub struct SaveRes {
     pub saving: SaveStage,
-    pub save: String
+    pub save: String,
+    pub quicksaves: Vec<(String, usize)>
 }
 
 #[derive(PartialEq)]
 pub enum SaveStage{
     Idle,
     Saving,
-    Loading
+    Loading,
+    SaveUndo,
+    Undo,
 }
 
 #[derive(PartialEq)]
@@ -52,7 +55,9 @@ pub enum ButtonEffect{
     Start,
     Save,
     Load,
+    Undo,
     Pause,
+    UnPause,
 }
 
 pub fn menu_setup(mut commands: Commands, asset_server: Res<AssetServer>) {
@@ -627,7 +632,7 @@ pub fn pause_menu_setup(mut commands: Commands, asset_server: Res<AssetServer>, 
                 ..default()
             }, 
             MenuButton{
-                button_effect: ButtonEffect::Play,
+                button_effect: ButtonEffect::UnPause,
                 pickup_object: EntityType::None,
                 level: "".to_owned(),
                 hovering: false, 
@@ -1087,14 +1092,14 @@ pub fn game_ui_setup(mut commands: Commands, asset_server: Res<AssetServer>, spr
                             ..default()
                         }, 
                         MenuButton{
-                            button_effect: ButtonEffect::Load,
+                            button_effect: ButtonEffect::Undo,
                             pickup_object: EntityType::None,
                             level: "".to_owned(),
                             hovering: false, 
                             hover_time: 0.0
                         })).with_children(|parent| {
                             parent.spawn(TextBundle::from_section(
-                                "LOAD",
+                                "Undo",
                                 text_style.to_owned()
                             ));
                         });
@@ -1165,6 +1170,7 @@ pub fn button_system(
                 match menu_button.button_effect {
                     ButtonEffect::MainMenu => {next_state.set(GameState::Menu);}
                     ButtonEffect::Pause => {next_state.set(GameState::Pause);}
+                    ButtonEffect::UnPause => {next_state.set(GameState::Gameplay);}
                     ButtonEffect::LevelSelect => {next_state.set(GameState::LevelSelect);}
                     ButtonEffect::Play => {
                         next_state.set(GameState::Gameplay);
@@ -1183,6 +1189,7 @@ pub fn button_system(
                     }
                     ButtonEffect::Save => {saving.saving = SaveStage::Saving;}
                     ButtonEffect::Load => {saving.saving = SaveStage::Loading;}
+                    ButtonEffect::Undo => {saving.saving = SaveStage::Undo;}
                     ButtonEffect::PickUp => {
                         if let Ok(mut cursor) = cursor_q.get_single_mut() {
                             cursor.holding = menu_button.pickup_object;

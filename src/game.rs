@@ -8,6 +8,8 @@ use serde::{Deserialize, Serialize};
 
 use std::fs;
 
+pub static ANIMATION_SPEED: f32 = 0.15;
+
 #[derive(Serialize, Deserialize, Debug)]
 #[derive(TypePath)]
 #[derive(TypeUuid)]
@@ -614,7 +616,7 @@ impl Field {
                                 state: EntityState::Idle,
                                 last_direction: MoveDirection::None,
                             },
-                            animation_timer: AnimationTimer(Timer::from_seconds(0.2, TimerMode::Repeating)),
+                            animation_timer: AnimationTimer(Timer::from_seconds(ANIMATION_SPEED, TimerMode::Repeating)),
                             animal: Animal,
                             sprite: SpriteSheetBundle {
                                 texture_atlas: sprites.sprites[
@@ -681,7 +683,7 @@ impl Field {
                                 state: EntityState::Idle,
                                 last_direction: MoveDirection::None,
                             },
-                            animation_timer: AnimationTimer(Timer::from_seconds(0.2, TimerMode::Repeating)),
+                            animation_timer: AnimationTimer(Timer::from_seconds(ANIMATION_SPEED, TimerMode::Repeating)),
                             wagon: Wagon,
                             sprite: SpriteSheetBundle {
                                 texture_atlas: sprites.sprites["Wagon"].clone(),
@@ -999,6 +1001,7 @@ impl Field {
 
                             }
                             _ => {
+                                entity.state = EntityState::Idle;
                                 if entity.entity_type == EntityType::Goat {
                                     let tile_slam_target = (frontx as isize) > -xoffset || (fronty as isize) > -yoffset;
                                     if tile_slam_target && 
@@ -1012,11 +1015,17 @@ impl Field {
                                         }else{
                                             //SLAM
                                             println!("SLAM");
+                                            entity.state = EntityState::Special;
                                             target_entity.last_direction = move_direction;
                                             target_entity.location.x = tile_slam_target_x;
                                             target_entity.location.y = tile_slam_target_y;
                                             target_entity.target_location = target_entity.location;
                                             target_entity.state = EntityState::Idle;
+                                            if let Ok(tile) = tile_q.get(self.tiles[x][y].0) {
+                                                if tile.tile_type == TileType::Mud || tile.tile_type == TileType::MuddyRocks {
+                                                    target_entity.state = EntityState::Sliding;
+                                                }
+                                            }
                                             if !(startx == x && starty == y) {
                                                 self.tiles[tile_slam_target_x][tile_slam_target_y].3 = self.tiles[frontx][fronty].3.to_owned();
                                                 self.tiles[frontx][fronty].3 = None;
@@ -1024,40 +1033,7 @@ impl Field {
                                         }
                                     }
                                 }
-                                entity.state = EntityState::Idle;
                                 return true;
-                            }
-                        }
-                    }
-                }
-                if tile_in_front && self.can_get_tile(frontx, fronty) {
-                    if let Some(slam_entity_id) = self.tiles[frontx][fronty].3 {
-                        println!("CHECKING FOR SLAM");
-                        if let Ok([entity, mut slam_entity]) = entity_q.get_many_mut([entity_id, slam_entity_id]) {
-                            if entity.entity_type == EntityType::Goat {
-                                println!("TRYING TO SLAM");
-                                let tile_slam_target = (frontx as isize) > -xoffset*2 || (fronty as isize) > -yoffset*2;
-                                if tile_slam_target && 
-                                self.can_get_tile(((frontx as isize) + xoffset*2) as usize, ((fronty as isize) + yoffset*2) as usize) {
-                                    let tile_slam_target_x = ((frontx as isize) + xoffset*2) as usize;
-                                    let tile_slam_target_y = ((fronty as isize) + yoffset*2) as usize;
-                                    if self.tiles[tile_slam_target_x][tile_slam_target_y].3.is_some() {
-                                        println!("SLAM FAIL");
-                                        //FAIL
-                                        return false;
-                                    }else{
-                                        //SLAM
-                                        println!("SLAM");
-                                        slam_entity.last_direction = move_direction;
-                                        slam_entity.location.x = tile_slam_target_x;
-                                        slam_entity.location.y = tile_slam_target_y;
-                                        slam_entity.target_location = slam_entity.location;
-                                        if !(startx == x && starty == y) {
-                                            self.tiles[tile_slam_target_x][tile_slam_target_y].3 = self.tiles[frontx][fronty].3.to_owned();
-                                            self.tiles[frontx][fronty].3 = None;
-                                        }
-                                    }
-                                }
                             }
                         }
                     }
@@ -1112,13 +1088,17 @@ impl Field {
                             }
                             TileType::Mud => {
                                 //set state as muddy
-                                if moving_entity.entity_type != EntityType::Pig {
+                                if moving_entity.entity_type == EntityType::Pig {
+                                    moving_entity.state = EntityState::Walking;
+                                }else{
                                     moving_entity.state = EntityState::Sliding;
                                 }
                             }
                             TileType::MuddyRocks => {
                                 //set state as muddy
-                                if moving_entity.entity_type != EntityType::Pig {
+                                if moving_entity.entity_type == EntityType::Pig {
+                                    moving_entity.state = EntityState::Walking;
+                                }else{
                                     moving_entity.state = EntityState::Sliding;
                                 }
                             }
@@ -1153,6 +1133,45 @@ impl Field {
                         self.tiles[startx][starty].3 = None;
                     } else {
                         moving_entity.state = EntityState::Idle;
+                    }
+                }
+                if tile_in_front && self.can_get_tile(frontx, fronty) {
+                    if let Some(slam_entity_id) = self.tiles[frontx][fronty].3 {
+                        println!("CHECKING FOR SLAM");
+                        if let Ok([mut entity, mut slam_entity]) = entity_q.get_many_mut([entity_id, slam_entity_id]) {
+                            if entity.entity_type == EntityType::Goat {
+                                println!("TRYING TO SLAM");
+                                let tile_slam_target = (frontx as isize) > -xoffset*2 || (fronty as isize) > -yoffset*2;
+                                if tile_slam_target && 
+                                self.can_get_tile(((frontx as isize) + xoffset*2) as usize, ((fronty as isize) + yoffset*2) as usize) {
+                                    let tile_slam_target_x = ((frontx as isize) + xoffset*2) as usize;
+                                    let tile_slam_target_y = ((fronty as isize) + yoffset*2) as usize;
+                                    if self.tiles[tile_slam_target_x][tile_slam_target_y].3.is_some() {
+                                        println!("SLAM FAIL");
+                                        //FAIL
+                                        return false;
+                                    }else{
+                                        //SLAM
+                                        println!("SLAM");
+                                        entity.state = EntityState::Special;
+                                        slam_entity.last_direction = move_direction;
+                                        slam_entity.location.x = tile_slam_target_x;
+                                        slam_entity.location.y = tile_slam_target_y;
+                                        slam_entity.target_location = slam_entity.location;
+                                        slam_entity.state = EntityState::Idle;
+                                        if let Ok(tile) = tile_q.get(self.tiles[x][y].0) {
+                                            if tile.tile_type == TileType::Mud || tile.tile_type == TileType::MuddyRocks {
+                                                slam_entity.state = EntityState::Sliding;
+                                            }
+                                        }
+                                        if !(startx == x && starty == y) {
+                                            self.tiles[tile_slam_target_x][tile_slam_target_y].3 = self.tiles[frontx][fronty].3.to_owned();
+                                            self.tiles[frontx][fronty].3 = None;
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
                 if tile_in_back && self.can_get_tile(backx, backy) {
@@ -1273,6 +1292,7 @@ pub fn mouse_controls(
     mut q_cursor: Query<&mut Cursor>, 
     mut q_transform: Query<&mut Transform>,
     mut q_desc: Query<&mut Text, With<Description>>,
+    simulation: Res<SimulateRes>,
     buttons: Res<Input<MouseButton>>,
     ui_scale: Res<UiScale>,){
     if let Ok(window) = q_windows.get_single() {
@@ -1281,35 +1301,37 @@ pub fn mouse_controls(
             let tile_pos_x = (tile.x + TILE_OFFSET_X).round() as usize;
             let tile_pos_y = (tile.y + TILE_OFFSET_Y).round() as usize;
             if let Ok(mut cursor) = q_cursor.get_single_mut() {
-                if cursor.holding != EntityType::None 
-                    && (buttons.pressed(MouseButton::Left) || buttons.pressed(MouseButton::Right)) != cursor.drag_drop 
-                    && (Vec2::distance(cursor.pos, cursor.starting_pos) > CURSOR_MIN_MOVE_DIST || buttons.just_pressed(MouseButton::Left)) {
-                    match field.get_tile_type(tile_pos_x, tile_pos_y, &q_tile) {
-                        Some(TileType::Fence) | Some(TileType::Ditch) => {}
-                        _ => {
-                            field.set_entity(&mut commands, &sprites, cursor.holding, tile_pos_x, tile_pos_y);
-                            cursor.holding = EntityType::None;
+                if !simulation.simulating {
+                    if cursor.holding != EntityType::None 
+                        && (buttons.pressed(MouseButton::Left) || buttons.pressed(MouseButton::Right)) != cursor.drag_drop 
+                        && (Vec2::distance(cursor.pos, cursor.starting_pos) > CURSOR_MIN_MOVE_DIST || buttons.just_pressed(MouseButton::Left)) {
+                        match field.get_tile_type(tile_pos_x, tile_pos_y, &q_tile) {
+                            Some(TileType::Fence) | Some(TileType::Ditch) => {}
+                            _ => {
+                                field.set_entity(&mut commands, &sprites, cursor.holding, tile_pos_x, tile_pos_y);
+                                cursor.holding = EntityType::None;
+                            }
                         }
                     }
-                }
-                if buttons.just_released(MouseButton::Left) && Vec2::distance(cursor.pos, cursor.starting_pos) < CURSOR_MIN_MOVE_DIST {
-                    cursor.drag_drop = false;
-                }
-                if cursor.holding == EntityType::None {
-                    if buttons.just_pressed(MouseButton::Left) {
-                        let food = field.get_entity_type(tile_pos_x, tile_pos_y, q_entity);
-                        match food {
-                            Some(EntityType::ChickenFood) | Some(EntityType::HorseFood) | Some(EntityType::PigFood) | Some(EntityType::AllFood) | Some(EntityType::WagonFood) => {
-                                cursor.holding = food.unwrap();
-                                if let Some(old_entity) = field.tiles[tile_pos_x][tile_pos_y].2 {
-                                    commands.entity(old_entity).despawn_recursive();
-                                    field.tiles[tile_pos_x][tile_pos_y].2 = None;
+                    if buttons.just_released(MouseButton::Left) && Vec2::distance(cursor.pos, cursor.starting_pos) < CURSOR_MIN_MOVE_DIST {
+                        cursor.drag_drop = false;
+                    }
+                    if cursor.holding == EntityType::None {
+                        if buttons.just_pressed(MouseButton::Left) {
+                            let food = field.get_entity_type(tile_pos_x, tile_pos_y, q_entity);
+                            match food {
+                                Some(EntityType::ChickenFood) | Some(EntityType::HorseFood) | Some(EntityType::PigFood) | Some(EntityType::AllFood) | Some(EntityType::WagonFood) => {
+                                    cursor.holding = food.unwrap();
+                                    if let Some(old_entity) = field.tiles[tile_pos_x][tile_pos_y].2 {
+                                        commands.entity(old_entity).despawn_recursive();
+                                        field.tiles[tile_pos_x][tile_pos_y].2 = None;
+                                    }
+                                    cursor.starting_pos = cursor.pos;
                                 }
-                                cursor.starting_pos = cursor.pos;
+                                _ => {}
                             }
-                            _ => {}
+                            cursor.drag_drop = true;
                         }
-                        cursor.drag_drop = true;
                     }
                 }
             }
@@ -1383,102 +1405,182 @@ pub fn saving_system(
     q_entity: Query<&GameEntity>,
     mut simulation: ResMut<SimulateRes>,
     mut saving: ResMut<SaveRes>,){
-    match saving.saving {
-        SaveStage::Saving => {
-            if field.tiles.len() <= 0 || field.tiles[0].len() <= 0 {
-                println!("You FOOL! There is no level to save!");
-                return;
-            }
-            let mut save = SaveFile { version: 2, width: field.tiles.len(), height: field.tiles[0].len(), tiles: vec![] };
-
-            let mut y = 0;
-            while y < save.height {
-                let mut x = 0;
-                while x < save.width {
-                    let mut save_tile: Option<Tile> = None;
-                    let mut save_entity_1: Option<GameEntity> = None;
-                    let mut save_entity_2: Option<GameEntity> = None;
-                    let mut save_entity_3: Option<GameEntity> = None;
-                    if let Ok(tile) = q_tile.get(field.tiles[x][y].0) {
-                        save_tile = Some(tile.clone());
-                    }
-                    if let Some(entity_id) = field.tiles[x][y].1 {
-                        if let Ok(entity) = q_entity.get(entity_id) {
-                            save_entity_1 = Some(entity.clone());
-                        }
-                    }
-                    if let Some(entity_id) = field.tiles[x][y].2 {
-                        if let Ok(entity) = q_entity.get(entity_id) {
-                            save_entity_2 = Some(entity.clone());
-                        }
-                    }
-                    if let Some(entity_id) = field.tiles[x][y].3 {
-                        if let Ok(entity) = q_entity.get(entity_id) {
-                            save_entity_3 = Some(entity.clone());
-                        }
-                    }
-                    save.tiles.push((save_tile, save_entity_1, save_entity_2, save_entity_3));
-                    x += 1;
+    if !simulation.simulating {
+        match saving.saving {
+            SaveStage::Saving => {
+                if field.tiles.len() <= 0 || field.tiles[0].len() <= 0 {
+                    println!("You FOOL! There is no level to save!");
+                    return;
                 }
-                y += 1;
-            }
+                let mut save = SaveFile { version: 2, width: field.tiles.len(), height: field.tiles[0].len(), tiles: vec![] };
 
-            if let Ok(save_string) = serde_json::to_string(&save){
-                let _ = fs::write("level.skb", save_string);
-                saving.save = "level.skb".to_owned();
-            }
+                let mut y = 0;
+                while y < save.height {
+                    let mut x = 0;
+                    while x < save.width {
+                        let mut save_tile: Option<Tile> = None;
+                        let mut save_entity_1: Option<GameEntity> = None;
+                        let mut save_entity_2: Option<GameEntity> = None;
+                        let mut save_entity_3: Option<GameEntity> = None;
+                        if let Ok(tile) = q_tile.get(field.tiles[x][y].0) {
+                            save_tile = Some(tile.clone());
+                        }
+                        if let Some(entity_id) = field.tiles[x][y].1 {
+                            if let Ok(entity) = q_entity.get(entity_id) {
+                                save_entity_1 = Some(entity.clone());
+                            }
+                        }
+                        if let Some(entity_id) = field.tiles[x][y].2 {
+                            if let Ok(entity) = q_entity.get(entity_id) {
+                                save_entity_2 = Some(entity.clone());
+                            }
+                        }
+                        if let Some(entity_id) = field.tiles[x][y].3 {
+                            if let Ok(entity) = q_entity.get(entity_id) {
+                                save_entity_3 = Some(entity.clone());
+                            }
+                        }
+                        save.tiles.push((save_tile, save_entity_1, save_entity_2, save_entity_3));
+                        x += 1;
+                    }
+                    y += 1;
+                }
 
-            saving.saving = SaveStage::Idle;
+                if let Ok(save_string) = serde_json::to_string(&save){
+                    let _ = fs::write("level.skb", save_string);
+                    saving.save = "level.skb".to_owned();
+                }
+
+                saving.saving = SaveStage::Idle;
+            }
+            SaveStage::Loading => {
+                println!("LOADING {}", saving.save.to_owned());
+                /*if let Ok(save_string) = fs::read_to_string(saving.save.to_owned()) {
+                    if let Ok(save) = serde_json::from_str::<SaveFile>(&save_string) {
+                        simulation.rounds = 1;
+                        for savetile in save.tiles {
+                            if let Some(tile) = savetile.0 {
+                                field.set_tile(&mut commands, &sprites, tile.tile_type, tile.location.x, tile.location.y);
+                                field.set_entity(&mut commands, &sprites, EntityType::None, tile.location.x, tile.location.y);
+                            }
+                            if let Some(entity) = savetile.1 {
+                                field.set_entity(&mut commands, &sprites, entity.entity_type, entity.location.x, entity.location.y);
+                            }
+                            if let Some(entity) = savetile.2 {
+                                field.set_entity(&mut commands, &sprites, entity.entity_type, entity.location.x, entity.location.y);
+                            }
+                            if let Some(entity) = savetile.3 {
+                                field.set_entity(&mut commands, &sprites, entity.entity_type, entity.location.x, entity.location.y);
+                            }
+                        }
+                    }else if let Err(error) = serde_json::from_str::<SaveFile>(&save_string){
+                        println!("Level Loading Failed! Error: {:?}", error);
+                    }
+                }else */ {
+                        println!("{:?}", &levels.levels[&saving.save]);
+                        println!("{:?}", savefiles.get(&levels.levels[&saving.save]));
+                    if let Some(save) = savefiles.get(&levels.levels[&saving.save]) {
+                        println!("?");
+                        simulation.rounds = 1;
+                        for savetile in &save.tiles {
+                            if let Some(tile) = savetile.0 {
+                                field.set_tile(&mut commands, &sprites, tile.tile_type, tile.location.x, tile.location.y);
+                                field.set_entity(&mut commands, &sprites, EntityType::None, tile.location.x, tile.location.y);
+                            }
+                            if let Some(entity) = savetile.1 {
+                                field.set_entity(&mut commands, &sprites, entity.entity_type, entity.location.x, entity.location.y);
+                            }
+                            if let Some(entity) = savetile.2 {
+                                field.set_entity(&mut commands, &sprites, entity.entity_type, entity.location.x, entity.location.y);
+                            }
+                            if let Some(entity) = savetile.3 {
+                                field.set_entity(&mut commands, &sprites, entity.entity_type, entity.location.x, entity.location.y);
+                            }
+                        }
+                    }
+                }
+
+                saving.saving = SaveStage::SaveUndo;
+            }
+            SaveStage::SaveUndo => {
+                if field.tiles.len() <= 0 || field.tiles[0].len() <= 0 {
+                    println!("You FOOL! There is no level to save!");
+                    return;
+                }
+                let mut save = SaveFile { version: 2, width: field.tiles.len(), height: field.tiles[0].len(), tiles: vec![] };
+
+                let mut y = 0;
+                while y < save.height {
+                    let mut x = 0;
+                    while x < save.width {
+                        let mut save_tile: Option<Tile> = None;
+                        let mut save_entity_1: Option<GameEntity> = None;
+                        let mut save_entity_2: Option<GameEntity> = None;
+                        let mut save_entity_3: Option<GameEntity> = None;
+                        if let Ok(tile) = q_tile.get(field.tiles[x][y].0) {
+                            save_tile = Some(tile.clone());
+                        }
+                        if let Some(entity_id) = field.tiles[x][y].1 {
+                            if let Ok(entity) = q_entity.get(entity_id) {
+                                save_entity_1 = Some(entity.clone());
+                            }
+                        }
+                        if let Some(entity_id) = field.tiles[x][y].2 {
+                            if let Ok(entity) = q_entity.get(entity_id) {
+                                save_entity_2 = Some(entity.clone());
+                            }
+                        }
+                        if let Some(entity_id) = field.tiles[x][y].3 {
+                            if let Ok(entity) = q_entity.get(entity_id) {
+                                save_entity_3 = Some(entity.clone());
+                            }
+                        }
+                        save.tiles.push((save_tile, save_entity_1, save_entity_2, save_entity_3));
+                        x += 1;
+                    }
+                    y += 1;
+                }
+
+                if let Ok(save_string) = serde_json::to_string(&save){
+                    saving.quicksaves.push((save_string, simulation.rounds));
+                }
+
+                saving.saving = SaveStage::Idle;
+            }
+            SaveStage::Undo => {
+                println!("LOADING UNDO");
+                if saving.quicksaves.len() > 1 {
+                    saving.quicksaves.pop();
+                    if let Some((save_string, roundnum)) = saving.quicksaves.last() {
+                        if let Ok(save) = serde_json::from_str::<SaveFile>(&save_string) {
+                            simulation.rounds = *roundnum;
+                            for savetile in save.tiles {
+                                if let Some(tile) = savetile.0 {
+                                    field.set_tile(&mut commands, &sprites, tile.tile_type, tile.location.x, tile.location.y);
+                                    field.set_entity(&mut commands, &sprites, EntityType::None, tile.location.x, tile.location.y);
+                                }
+                                if let Some(entity) = savetile.1 {
+                                    field.set_entity(&mut commands, &sprites, entity.entity_type, entity.location.x, entity.location.y);
+                                }
+                                if let Some(entity) = savetile.2 {
+                                    field.set_entity(&mut commands, &sprites, entity.entity_type, entity.location.x, entity.location.y);
+                                }
+                                if let Some(entity) = savetile.3 {
+                                    field.set_entity(&mut commands, &sprites, entity.entity_type, entity.location.x, entity.location.y);
+                                }
+                            }
+                        }else if let Err(error) = serde_json::from_str::<SaveFile>(&save_string){
+                            println!("Level Loading Failed! Error: {:?}", error);
+                        }
+
+                        saving.saving = SaveStage::Idle;
+                    }
+                }else{
+                    println!("NO UNDO AVAILABLE");
+                    saving.saving = SaveStage::Idle;
+                }
+            }
+            _ => {}
         }
-        SaveStage::Loading => {
-            println!("LOADING {}", saving.save.to_owned());
-            /*if let Ok(save_string) = fs::read_to_string(saving.save.to_owned()) {
-                if let Ok(save) = serde_json::from_str::<SaveFile>(&save_string) {
-                    simulation.rounds = 1;
-                    for savetile in save.tiles {
-                        if let Some(tile) = savetile.0 {
-                            field.set_tile(&mut commands, &sprites, tile.tile_type, tile.location.x, tile.location.y);
-                            field.set_entity(&mut commands, &sprites, EntityType::None, tile.location.x, tile.location.y);
-                        }
-                        if let Some(entity) = savetile.1 {
-                            field.set_entity(&mut commands, &sprites, entity.entity_type, entity.location.x, entity.location.y);
-                        }
-                        if let Some(entity) = savetile.2 {
-                            field.set_entity(&mut commands, &sprites, entity.entity_type, entity.location.x, entity.location.y);
-                        }
-                        if let Some(entity) = savetile.3 {
-                            field.set_entity(&mut commands, &sprites, entity.entity_type, entity.location.x, entity.location.y);
-                        }
-                    }
-                }else if let Err(error) = serde_json::from_str::<SaveFile>(&save_string){
-                    println!("Level Loading Failed! Error: {:?}", error);
-                }
-            }else */ {
-                    println!("{:?}", &levels.levels[&saving.save]);
-                    println!("{:?}", savefiles.get(&levels.levels[&saving.save]));
-                if let Some(save) = savefiles.get(&levels.levels[&saving.save]) {
-                    println!("?");
-                    simulation.rounds = 1;
-                    for savetile in &save.tiles {
-                        if let Some(tile) = savetile.0 {
-                            field.set_tile(&mut commands, &sprites, tile.tile_type, tile.location.x, tile.location.y);
-                            field.set_entity(&mut commands, &sprites, EntityType::None, tile.location.x, tile.location.y);
-                        }
-                        if let Some(entity) = savetile.1 {
-                            field.set_entity(&mut commands, &sprites, entity.entity_type, entity.location.x, entity.location.y);
-                        }
-                        if let Some(entity) = savetile.2 {
-                            field.set_entity(&mut commands, &sprites, entity.entity_type, entity.location.x, entity.location.y);
-                        }
-                        if let Some(entity) = savetile.3 {
-                            field.set_entity(&mut commands, &sprites, entity.entity_type, entity.location.x, entity.location.y);
-                        }
-                    }
-                }
-            }
-
-            saving.saving = SaveStage::Idle;
-        }
-        _ => {}
     }
 }
