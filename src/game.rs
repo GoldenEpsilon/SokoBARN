@@ -1509,9 +1509,13 @@ pub fn mouse_controls(
             let tile = Vec2{ x: (position.x - window.width()/2.0) / TILE_SIZE / ui_scale.scale as f32, y: (window.height()/2.0 - position.y) / TILE_SIZE / ui_scale.scale as f32};
             let tile_pos_x = (tile.x + TILE_OFFSET_X).round() as usize;
             let tile_pos_y = (tile.y + TILE_OFFSET_Y).round() as usize;
+            let illegal_y_pos = 
+            if (tile.y + TILE_OFFSET_Y).round() < 0.0 {
+                true
+            }else{false};
             let mut cursor_holding = false;
             if let Ok(mut cursor) = q_cursor.get_single_mut() {
-                if !simulation.simulating {
+                if !simulation.simulating && !illegal_y_pos {
                     if cursor.holding != EntityType::None 
                         && (buttons.pressed(MouseButton::Left) || buttons.pressed(MouseButton::Right)) != cursor.drag_drop 
                         && (Vec2::distance(cursor.pos, cursor.starting_pos) > CURSOR_MIN_MOVE_DIST || buttons.just_pressed(MouseButton::Left)) {
@@ -1537,6 +1541,7 @@ pub fn mouse_controls(
                                         field.tiles[tile_pos_x][tile_pos_y].2 = None;
                                     }
                                     cursor.starting_pos = cursor.pos;
+                                    cursor_holding = true;
                                 }
                                 _ => {}
                             }
@@ -1547,7 +1552,7 @@ pub fn mouse_controls(
                     }
                 }
             }
-            if field.can_get_tile(tile_pos_x, tile_pos_y) {
+            if field.can_get_tile(tile_pos_x, tile_pos_y) && !illegal_y_pos {
                 if let Ok(mut desc) = q_desc.get_single_mut() {
                     desc.sections[0].value = 
                     match field.get_tile_type(tile_pos_x, tile_pos_y, &q_tile) {
@@ -1564,7 +1569,7 @@ pub fn mouse_controls(
                         _ => {""}
                     }.to_owned();
                 }
-                
+                println!("{}", cursor_holding);
                 if buttons.just_pressed(MouseButton::Left) && !cursor_holding {
                     match field.get_tile_type(tile_pos_x, tile_pos_y, &q_tile) {
                         Some(TileType::Grass) => {field.set_tile(&mut commands, &sprites, TileType::Fence, tile_pos_x, tile_pos_y);}
@@ -1666,7 +1671,7 @@ pub fn saving_system(
             }
             SaveStage::Loading => {
                 println!("LOADING {}", saving.save.to_owned());
-                /*if let Ok(save_string) = fs::read_to_string(saving.save.to_owned()) {
+                if let Ok(save_string) = fs::read_to_string(saving.save.to_owned()) {
                     if let Ok(save) = serde_json::from_str::<SaveFile>(&save_string) {
                         simulation.rounds = 1;
                         for savetile in save.tiles {
@@ -1687,7 +1692,7 @@ pub fn saving_system(
                     }else if let Err(error) = serde_json::from_str::<SaveFile>(&save_string){
                         println!("Level Loading Failed! Error: {:?}", error);
                     }
-                }else */ {
+                }else  {
                     if let Some(save) = savefiles.get(&levels.levels[&saving.save]) {
                         simulation.rounds = 1;
                         for savetile in &save.tiles {

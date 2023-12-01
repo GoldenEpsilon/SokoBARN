@@ -151,6 +151,7 @@ fn setup(
     {let level = "Levels/horse-tutorial-2.skb";levels.insert(level.to_owned(), asset_server.load(level));}
     {let level = "Levels/pig-tutorial-1.skb";levels.insert(level.to_owned(), asset_server.load(level));}
     {let level = "Levels/pig-tutorial-2.skb";levels.insert(level.to_owned(), asset_server.load(level));}
+    {let level = "Levels/blank.skb";levels.insert(level.to_owned(), asset_server.load(level));}
     
     commands.insert_resource(Levels { levels: levels });
 
