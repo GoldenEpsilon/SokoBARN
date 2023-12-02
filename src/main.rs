@@ -114,8 +114,7 @@ fn main() {
 
         //Gameplay
         .add_systems(OnEnter(GameState::Gameplay), (setup_level, game_ui_setup).run_if(common_conditions::not(resource_exists::<Field>())))
-        .add_systems(Update, saving_system.run_if(in_state(GameState::Gameplay)))
-        .add_systems(Update, saving_system.run_if(in_state(GameState::Pause)))
+        .add_systems(Update, saving_system.run_if(in_state(GameState::Gameplay).or_else(in_state(GameState::Pause))))
         .add_systems(Update, simulate.run_if(in_state(GameState::Gameplay)))
         .add_systems(Update, weather_system.run_if(in_state(GameState::Gameplay)))
 
@@ -123,7 +122,7 @@ fn main() {
         .add_systems(Update, (mouse_controls, apply_deferred).chain().run_if(in_state(GameState::Gameplay)))
 
         //Post Update Visuals
-        .add_systems(PostUpdate, (fence_system.run_if(in_state(GameState::Gameplay)), animation_system, effect_system, resize_system, apply_deferred).chain())
+        .add_systems(PostUpdate, ((ditch_system, fence_system).run_if(in_state(GameState::Gameplay).or_else(in_state(GameState::Pause))), animation_system, effect_system, resize_system, apply_deferred).chain())
         .run();
 }
 
@@ -156,22 +155,22 @@ fn setup(
     commands.insert_resource(Levels { levels: levels });
 
     let mut sprites: HashMap<String, Handle<TextureAtlas>> = HashMap::new();
-    sprites.insert("Grass".to_owned(), texture_atlases.add(TextureAtlas::from_grid(asset_server.load("Sprites/Grass.png"), Vec2::new(32.0, 32.0), 2, 2, None, None)));
-    sprites.insert("Chicken".to_owned(), texture_atlases.add(TextureAtlas::from_grid(asset_server.load("Sprites/Chicken.png"), Vec2::new(28.0, 28.0), 4, 7, None, None)));
-    sprites.insert("Pig".to_owned(), texture_atlases.add(TextureAtlas::from_grid(asset_server.load("Sprites/Pig.png"), Vec2::new(28.0, 28.0), 4, 7, None, None)));
-    sprites.insert("Horse".to_owned(), texture_atlases.add(TextureAtlas::from_grid(asset_server.load("Sprites/Horse.png"), Vec2::new(28.0, 28.0), 4, 7, None, None)));
-    sprites.insert("Goat".to_owned(), texture_atlases.add(TextureAtlas::from_grid(asset_server.load("Sprites/Goat.png"), Vec2::new(28.0, 28.0), 4, 7, None, None)));
-    sprites.insert("Wagon".to_owned(), texture_atlases.add(TextureAtlas::from_grid(asset_server.load("Sprites/Cart.png"), Vec2::new(28.0, 28.0), 4, 7, None, None)));
-    sprites.insert("Food".to_owned(), texture_atlases.add(TextureAtlas::from_grid(asset_server.load("Sprites/Food.png"), Vec2::new(28.0, 28.0), 5, 1, None, None)));
-    sprites.insert("Fence".to_owned(), texture_atlases.add(TextureAtlas::from_grid(asset_server.load("Sprites/Fences.png"), Vec2::new(32.0, 32.0), 5, 1, None, None)));
-    sprites.insert("Rocks".to_owned(), texture_atlases.add(TextureAtlas::from_grid(asset_server.load("Sprites/Rocks.png"), Vec2::new(64.0, 64.0), 2, 2, None, None)));
-    sprites.insert("Mud".to_owned(), texture_atlases.add(TextureAtlas::from_grid(asset_server.load("Sprites/Mud.png"), Vec2::new(64.0, 64.0), 2, 2, None, None)));
-    sprites.insert("MuddyRocks".to_owned(), texture_atlases.add(TextureAtlas::from_grid(asset_server.load("Sprites/MuddyRocks.png"), Vec2::new(64.0, 64.0), 2, 2, None, None)));
-    sprites.insert("Ditch".to_owned(), texture_atlases.add(TextureAtlas::from_grid(asset_server.load("Sprites/Ditches.png"), Vec2::new(32.0, 32.0), 8, 2, None, None)));
-    sprites.insert("Pens".to_owned(), texture_atlases.add(TextureAtlas::from_grid(asset_server.load("Sprites/Pens.png"), Vec2::new(48.0, 48.0), 5, 3, None, None)));
-    sprites.insert("Cursor".to_owned(), texture_atlases.add(TextureAtlas::from_grid(asset_server.load("Sprites/Cursor.png"), Vec2::new(64.0, 64.0), 5, 1, None, None)));
-    sprites.insert("Rain".to_owned(), texture_atlases.add(TextureAtlas::from_grid(asset_server.load("Sprites/Rain.png"), Vec2::new(5.0, 5.0), 4, 1, None, None)));
-    sprites.insert("MuddySplash".to_owned(), texture_atlases.add(TextureAtlas::from_grid(asset_server.load("Sprites/MuddySplash.png"), Vec2::new(28.0, 28.0), 4, 1, None, None)));
+    sprites.insert("Chicken".to_owned(), texture_atlases.add(TextureAtlas::from_grid(asset_server.load("Sprites/Animals/sokobarn-Chicken.png"), Vec2::new(28.0, 28.0), 4, 7, None, None)));
+    sprites.insert("Pig".to_owned(), texture_atlases.add(TextureAtlas::from_grid(asset_server.load("Sprites/Animals/sokobarn-Pig.png"), Vec2::new(28.0, 28.0), 4, 7, None, None)));
+    sprites.insert("Horse".to_owned(), texture_atlases.add(TextureAtlas::from_grid(asset_server.load("Sprites/Animals/sokobarn-Horse.png"), Vec2::new(28.0, 28.0), 4, 7, None, None)));
+    sprites.insert("Goat".to_owned(), texture_atlases.add(TextureAtlas::from_grid(asset_server.load("Sprites/Animals/sokobarn-Goat.png"), Vec2::new(28.0, 28.0), 4, 7, None, None)));
+    sprites.insert("Wagon".to_owned(), texture_atlases.add(TextureAtlas::from_grid(asset_server.load("Sprites/Animals/sokobarn-Empty-Cart.png"), Vec2::new(28.0, 28.0), 4, 7, None, None)));
+    sprites.insert("Grass".to_owned(), texture_atlases.add(TextureAtlas::from_grid(asset_server.load("Sprites/Tiles/sokobarn-Grass-NEW.png"), Vec2::new(32.0, 32.0), 2, 2, None, None)));
+    sprites.insert("Fence".to_owned(), texture_atlases.add(TextureAtlas::from_grid(asset_server.load("Sprites/Tiles/sokobarn-Fences.png"), Vec2::new(32.0, 32.0), 5, 1, None, None)));
+    sprites.insert("Rocks".to_owned(), texture_atlases.add(TextureAtlas::from_grid(asset_server.load("Sprites/Tiles/sokobarn-Rocks.png"), Vec2::new(64.0, 64.0), 2, 2, None, None)));
+    sprites.insert("Mud".to_owned(), texture_atlases.add(TextureAtlas::from_grid(asset_server.load("Sprites/Tiles/sokobarn-Mud.png"), Vec2::new(64.0, 64.0), 2, 2, None, None)));
+    sprites.insert("MuddyRocks".to_owned(), texture_atlases.add(TextureAtlas::from_grid(asset_server.load("Sprites/Tiles/sokobarn-Muddy-Rocks.png"), Vec2::new(64.0, 64.0), 2, 2, None, None)));
+    sprites.insert("Ditch".to_owned(), texture_atlases.add(TextureAtlas::from_grid(asset_server.load("Sprites/Tiles/sokobarn-Ditches.png"), Vec2::new(32.0, 32.0), 8, 2, None, None)));
+    sprites.insert("Pens".to_owned(), texture_atlases.add(TextureAtlas::from_grid(asset_server.load("Sprites/Tiles/sokobarn-Pens.png"), Vec2::new(48.0, 48.0), 5, 3, None, None)));
+    sprites.insert("Food".to_owned(), texture_atlases.add(TextureAtlas::from_grid(asset_server.load("Sprites/Misc/sokobarn-Food.png"), Vec2::new(28.0, 28.0), 5, 1, None, None)));
+    sprites.insert("Cursor".to_owned(), texture_atlases.add(TextureAtlas::from_grid(asset_server.load("Sprites/Misc/sokobarn-Cursors.png"), Vec2::new(64.0, 64.0), 5, 1, None, None)));
+    sprites.insert("Rain".to_owned(), texture_atlases.add(TextureAtlas::from_grid(asset_server.load("Sprites/Misc/sokobarn-Rain.png"), Vec2::new(5.0, 5.0), 4, 1, None, None)));
+    sprites.insert("MuddySplash".to_owned(), texture_atlases.add(TextureAtlas::from_grid(asset_server.load("Sprites/Misc/sokobarn-MuddySplash.png"), Vec2::new(28.0, 28.0), 4, 1, None, None)));
 
     commands.insert_resource(Sprites { sprites: sprites });
 
@@ -373,9 +372,9 @@ pub fn cursor(
 }
 
 pub fn animation_system(
-    mut q_entities: Query<(&mut TextureAtlasSprite, &mut AnimationTimer, &GameEntity)>,
+    mut q_entities: Query<(&mut TextureAtlasSprite, &mut AnimationTimer, &mut GameEntity)>,
     time: Res<Time>,){
-    for (mut sprite, mut timer, entity) in &mut q_entities {
+    for (mut sprite, mut timer, mut entity) in &mut q_entities {
         timer.tick(time.delta());
         if timer.just_finished() {
             sprite.index = (sprite.index + 1) %  
@@ -397,6 +396,18 @@ pub fn animation_system(
                 EntityState::Special => {6}
                 EntityState::Failure => {2}
             };
+            if let Some(prev_state) = entity.prev_state {
+                if prev_state != entity.state {
+                    sprite.index = 0;
+                }
+                //Animation Finished!
+                if prev_state == entity.state && sprite.index == 0 {
+                    if entity.state == EntityState::Special && entity.entity_type == EntityType::Goat {
+                        entity.state = EntityState::Idle;
+                    }
+                }
+            }
+            entity.prev_state = Some(entity.state.to_owned());
         }
     }
 }
