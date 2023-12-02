@@ -42,7 +42,8 @@ pub struct LevelData {
     pub author_par: usize,
     pub record: usize,
     pub unlock_req: usize,
-    pub weather: WeatherType
+    pub weather: WeatherType,
+    pub editor: bool
 }
 
 #[derive(Resource)]
@@ -1602,8 +1603,14 @@ pub fn button_system(
                             }
                         }
                     }
-                    ButtonEffect::Save => {saving.saving = SaveStage::Saving;}
-                    ButtonEffect::Load => {saving.saving = SaveStage::Loading;}
+                    ButtonEffect::Save => {
+                        saving.saving = SaveStage::Saving;
+                        saving.save = "level.skb".to_owned();
+                    }
+                    ButtonEffect::Load => {
+                        saving.saving = SaveStage::Loading;
+                        saving.save = "level.skb".to_owned();
+                    }
                     ButtonEffect::Undo => {saving.saving = SaveStage::Undo;}
                     ButtonEffect::PickUp => {
                         if let Ok(mut cursor) = cursor_q.get_single_mut() {

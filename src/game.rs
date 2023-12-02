@@ -932,12 +932,12 @@ impl Field {
                             match self.get_entity_type(x, y, &entity_q) {
                                 Some(EntityType::AllFood) => {
                                     if animal.entity_type == EntityType::Goat {
-                                        best = (entity.location, x - animalx);
+                                        best = (entity.location, animalx - x);
                                     }
                                 }
                                 _ => {
                                     if animal.entity_type != EntityType::Goat {
-                                        best = (entity.location, x - animalx);
+                                        best = (entity.location, animalx - x);
                                     }
                                 }
                             }
@@ -1234,6 +1234,12 @@ impl Field {
                                                 return false;
                                             }else{
                                                 //SLAM
+                                                match self.get_tile_type(frontx, fronty, tile_q) {
+                                                    Some(TileType::Fence) | Some(TileType::Ditch) => {
+                                                        return false;
+                                                    }
+                                                    _ => {}
+                                                }
                                                 println!("SLAM");
                                                 commands.spawn(AudioBundle {
                                                     source: sounds.sounds["GoatCrash"].to_owned(),
@@ -1251,6 +1257,9 @@ impl Field {
                                                 target_entity.state = EntityState::Idle;
                                                 if let Ok(tile) = tile_q.get(self.tiles[tile_slam_target_x][tile_slam_target_y].0) {
                                                     match tile.tile_type {
+                                                        TileType::Fence | TileType::Ditch => {
+                                                            return false;
+                                                        }
                                                         TileType::Mud | TileType::MuddyRocks => {
                                                             if target_entity.entity_type == EntityType::Pig {
                                                                 target_entity.state = EntityState::Walking;
@@ -1539,6 +1548,12 @@ impl Field {
                                         return false;
                                     }else{
                                         //SLAM
+                                        match self.get_tile_type(frontx, fronty, tile_q) {
+                                            Some(TileType::Fence) | Some(TileType::Ditch) => {
+                                                return false;
+                                            }
+                                            _ => {}
+                                        }
                                         println!("SLAM");
                                         commands.spawn(AudioBundle {
                                             source: sounds.sounds["GoatCrash"].to_owned(),
@@ -1556,6 +1571,9 @@ impl Field {
                                         slam_entity.state = EntityState::Idle;
                                         if let Ok(tile) = tile_q.get(self.tiles[tile_slam_target_x][tile_slam_target_y].0) {
                                             match tile.tile_type {
+                                                TileType::Fence | TileType::Ditch => {
+                                                    return false;
+                                                }
                                                 TileType::Mud | TileType::MuddyRocks => {
                                                     if slam_entity.entity_type == EntityType::Pig {
                                                         slam_entity.state = EntityState::Walking;

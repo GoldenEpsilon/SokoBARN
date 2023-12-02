@@ -151,23 +151,84 @@ fn setup(
     let mut worlds = vec![];
 
     worlds.push(LevelWorld{
+        name: "Editor".to_owned(),
+        levels: vec![
+            LevelData {
+                name: "Blank".to_owned(),
+                id: "Levels/blank.skb".to_owned(),
+                editor: true,
+                ..default()
+            }
+        ]
+    });
+    worlds.push(LevelWorld{
         name: "Tutorials".to_owned(),
         levels: vec![
             LevelData {
                 name: "Goat 1".to_owned(),
                 id: "Levels/goat-tutorial-1.skb".to_owned(),
                 ..default()
+            },
+            LevelData {
+                name: "Goat 2".to_owned(),
+                id: "Levels/goat-tutorial-2.skb".to_owned(),
+                ..default()
+            },
+            LevelData {
+                name: "Horse 1".to_owned(),
+                id: "Levels/horse-tutorial-1.skb".to_owned(),
+                ..default()
+            },
+            LevelData {
+                name: "Horse 2".to_owned(),
+                id: "Levels/horse-tutorial-2.skb".to_owned(),
+                ..default()
             }
         ]
     });
     worlds.push(LevelWorld{
-        name: "World 2".to_owned(),
+        name: "Tutorials 2".to_owned(),
         levels: vec![
             LevelData {
-                name: "Goat 1".to_owned(),
-                id: "Levels/goat-tutorial-1.skb".to_owned(),
+                name: "Pig 1".to_owned(),
+                id: "Levels/pig-tutorial-1.skb".to_owned(),
+                ..default()
+            },
+            LevelData {
+                name: "Pig 2".to_owned(),
+                id: "Levels/pig-tutorial-2.skb".to_owned(),
+                ..default()
+            },
+            LevelData {
+                name: "Chicken 1".to_owned(),
+                id: "Levels/chicken-tutorial-1.skb".to_owned(),
+                ..default()
+            },
+            LevelData {
+                name: "Chicken 2".to_owned(),
+                id: "Levels/chicken-tutorial-2.skb".to_owned(),
                 ..default()
             }
+        ]
+    });
+    worlds.push(LevelWorld{
+        name: "Extras".to_owned(),
+        levels: vec![
+            LevelData {
+                name: "Rain 1".to_owned(),
+                id: "Levels/Rain-1.skb".to_owned(),
+                ..default()
+            },
+            LevelData {
+                name: "Rain 2".to_owned(),
+                id: "Levels/Rain-2.skb".to_owned(),
+                ..default()
+            },
+            LevelData {
+                name: "Night 1".to_owned(),
+                id: "Levels/Night-1.skb".to_owned(),
+                ..default()
+            },
         ]
     });
 
@@ -190,7 +251,7 @@ fn setup(
     commands.insert_resource(Levels { levels: levels });
 
     
-    let mut ui_images: HashMap<String, Handle<SaveFile>> = HashMap::new();
+    let mut ui_images: HashMap<String, Handle<Image>> = HashMap::new();
     ui_images.insert("".to_owned(), asset_server.load(""));
     
     commands.insert_resource(UIImages { sprites: ui_images });
