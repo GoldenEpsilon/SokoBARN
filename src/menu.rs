@@ -56,7 +56,7 @@ pub struct PauseMenuData {
 pub struct SaveRes {
     pub saving: SaveStage,
     pub save: String,
-    pub quicksaves: Vec<(String, usize)>
+    pub quicksaves: Vec<(String, SimulateRes)>
 }
 
 #[derive(PartialEq)]
@@ -1251,11 +1251,13 @@ pub fn button_system(
                     }
                     ButtonEffect::Quit => {app_exit_events.send(bevy::app::AppExit);}
                     ButtonEffect::Start => {
-                        if simulating.simulating == false {
+                        if simulating.simulating == false && !simulating.loss && !simulating.win {
                             simulating.simulating = true;
                             if let Ok(mut round_counter) = round_counter_q.get_single_mut() {
                                 round_counter.sections[0].value = format!("Round {}", simulating.rounds);
                                 simulating.rounds = simulating.rounds + 1;
+                                simulating.loss = false;
+                                simulating.win = false;
                             }
                         }
                     }

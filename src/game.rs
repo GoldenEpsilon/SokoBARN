@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 
 pub static ANIMATION_SPEED: f32 = 0.15;
-pub static TICK_SPEED: f32 = 0.3;
+pub static TICK_SPEED: f32 = 0.2;
 
 #[derive(Serialize, Deserialize, Debug)]
 #[derive(TypePath)]
@@ -25,6 +25,7 @@ pub struct SaveFile {
 
 #[derive(Resource)]
 #[derive(Default)]
+#[derive(Clone, Copy)]
 pub struct SimulateRes {
     pub simulating: bool,
     pub simulation_step: EntityType,
@@ -183,7 +184,7 @@ pub struct Location {
 #[derive(Resource)]
 pub struct Field {
     //Tile, Buttons, Food, Animals
-    tiles: Vec<Vec<(Entity, Option<Entity>, Option<Entity>, Option<Entity>, Option<Entity>)>>,
+    pub tiles: Vec<Vec<(Entity, Option<Entity>, Option<Entity>, Option<Entity>, Option<Entity>)>>,
     pub cursor: Entity,
     pub simulate_timer: PlayModeTick,
 }
@@ -1052,6 +1053,72 @@ impl Field {
         return ret_val;
     }
 
+    pub fn check_win(&mut self,
+        entity_q: &Query<&GameEntity>, 
+        tile_q: &Query<&Tile>, 
+    ) -> bool {
+        for column in &self.tiles {
+            for tile in column {
+                if let Ok(tile_type) = tile_q.get(tile.0) {
+                    match tile_type.tile_type {
+                        TileType::ChickenPen => {
+                            if let Some(entity_id) = tile.3 {
+                                if let Ok(entity) = entity_q.get(entity_id) {
+                                    if entity.entity_type == EntityType::Chicken {
+                                        continue;
+                                    }
+                                }
+                            }
+                            return false;
+                        }
+                        TileType::HorsePen => {
+                            if let Some(entity_id) = tile.3 {
+                                if let Ok(entity) = entity_q.get(entity_id) {
+                                    if entity.entity_type == EntityType::Horse {
+                                        continue;
+                                    }
+                                }
+                            }
+                            return false;
+                        }
+                        TileType::PigPen => {
+                            if let Some(entity_id) = tile.3 {
+                                if let Ok(entity) = entity_q.get(entity_id) {
+                                    if entity.entity_type == EntityType::Pig {
+                                        continue;
+                                    }
+                                }
+                            }
+                            return false;
+                        }
+                        TileType::GoatPen => {
+                            if let Some(entity_id) = tile.3 {
+                                if let Ok(entity) = entity_q.get(entity_id) {
+                                    if entity.entity_type == EntityType::Goat {
+                                        continue;
+                                    }
+                                }
+                            }
+                            return false;
+                        }
+                        TileType::Corral => {
+                            if let Some(entity_id) = tile.3 {
+                                if let Ok(entity) = entity_q.get(entity_id) {
+                                    if entity.entity_type == EntityType::Wagon {
+                                        continue;
+                                    }
+                                }
+                            }
+                            return false;
+                        }
+                        _ => {}
+                    }
+                }
+            }
+        }
+        return true;
+    }
+
     pub fn slide_entity(&mut self,
         commands: &mut Commands, 
         entity_q: &mut Query<&mut GameEntity>, 
@@ -1232,9 +1299,10 @@ impl Field {
                                             self.can_get_tile(((frontx as isize) + xoffset) as usize, ((fronty as isize) + yoffset) as usize) {
                                             let tile_slam_target_x = ((frontx as isize) + xoffset) as usize;
                                             let tile_slam_target_y = ((fronty as isize) + yoffset) as usize;
+                                            if let Some(TileType::Fence) = self.get_tile_type(frontx, fronty, tile_q) {
+                                                return false;
+                                            }
                                             if self.tiles[tile_slam_target_x][tile_slam_target_y].3.is_some() {
-                                                println!("SLAM FAIL");
-                                                //FAIL
                                                 return false;
                                             }else{
                                                 //SLAM
@@ -1261,7 +1329,7 @@ impl Field {
                                                 target_entity.state = EntityState::Idle;
                                                 if let Ok(tile) = tile_q.get(self.tiles[tile_slam_target_x][tile_slam_target_y].0) {
                                                     match tile.tile_type {
-                                                        TileType::Fence | TileType::Ditch => {
+                                                        TileType::Ditch | TileType::Fence => {
                                                             return false;
                                                         }
                                                         TileType::Mud | TileType::MuddyRocks => {
@@ -1546,9 +1614,10 @@ impl Field {
                                 self.can_get_tile(((frontx as isize) + xoffset*2) as usize, ((fronty as isize) + yoffset*2) as usize) {
                                     let tile_slam_target_x = ((frontx as isize) + xoffset*2) as usize;
                                     let tile_slam_target_y = ((fronty as isize) + yoffset*2) as usize;
+                                    if let Some(TileType::Fence) = self.get_tile_type(((frontx as isize) + xoffset) as usize, ((fronty as isize) + yoffset) as usize, tile_q) {
+                                        return false;
+                                    }
                                     if self.tiles[tile_slam_target_x][tile_slam_target_y].3.is_some() {
-                                        println!("SLAM FAIL");
-                                        //FAIL
                                         return false;
                                     }else{
                                         //SLAM
@@ -1575,7 +1644,7 @@ impl Field {
                                         slam_entity.state = EntityState::Idle;
                                         if let Ok(tile) = tile_q.get(self.tiles[tile_slam_target_x][tile_slam_target_y].0) {
                                             match tile.tile_type {
-                                                TileType::Fence | TileType::Ditch => {
+                                                TileType::Ditch | TileType::Fence => {
                                                     return false;
                                                 }
                                                 TileType::Mud | TileType::MuddyRocks => {
@@ -1994,7 +2063,7 @@ pub fn saving_system(
                 }
 
                 if let Ok(save_string) = serde_json::to_string(&save){
-                    saving.quicksaves.push((save_string, simulation.rounds));
+                    saving.quicksaves.push((save_string, simulation.to_owned()));
                 }
 
                 saving.saving = SaveStage::Idle;
@@ -2003,9 +2072,11 @@ pub fn saving_system(
                 println!("LOADING UNDO");
                 if saving.quicksaves.len() > 1 {
                     saving.quicksaves.pop();
-                    if let Some((save_string, roundnum)) = saving.quicksaves.last() {
+                    if let Some((save_string, savedsimulation)) = saving.quicksaves.last() {
                         if let Ok(save) = serde_json::from_str::<SaveFile>(&save_string) {
-                            simulation.rounds = *roundnum;
+                            simulation.rounds = savedsimulation.rounds;
+                            simulation.loss = savedsimulation.loss;
+                            simulation.win = savedsimulation.win;
                             for savetile in save.tiles {
                                 if let Some(tile) = savetile.0 {
                                     field.set_tile(&mut commands, &sprites, tile.tile_type, tile.location.x, tile.location.y);

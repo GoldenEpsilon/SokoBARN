@@ -19,9 +19,12 @@ pub fn simulate(
     if simulating.loss {
         pause_menu_data.mode = PauseMenuMode::Lose;
         next_state.set(GameState::Pause);
+        for mut entity in &mut entity_q {
+            entity.state = EntityState::Failure;
+        }
         return;
     }
-    if simulating.simulating {
+    if simulating.simulating && !simulating.loss && !simulating.win {
         field.simulate_timer.tick(time.delta());
         if field.simulate_timer.just_finished() {
             let mut full_simulation = false;
@@ -32,57 +35,6 @@ pub fn simulate(
             println!("Simulation Tick!");
             let mut has_simulated = false;
             while simulating.simulation_step != EntityType::None && has_simulated != true {
-                let mut celebrate = true;
-                for entity in field.get_entities(&entity_q.to_readonly()) {
-                    match entity.entity_type {
-                        EntityType::Chicken => {
-                            if let Some(tile) = field.get_tile_type(entity.location.x, entity.location.y, &tile_q) {
-                                if tile != TileType::ChickenPen {
-                                    celebrate = false;
-                                }
-                            } else {
-                                celebrate = false;
-                            }
-                        }
-                        EntityType::Pig => {
-                            if let Some(tile) = field.get_tile_type(entity.location.x, entity.location.y, &tile_q) {
-                                if tile != TileType::PigPen {
-                                    celebrate = false;
-                                }
-                            } else {
-                                celebrate = false;
-                            }
-                        }
-                        EntityType::Horse => {
-                            if let Some(tile) = field.get_tile_type(entity.location.x, entity.location.y, &tile_q) {
-                                if tile != TileType::HorsePen {
-                                    celebrate = false;
-                                }
-                            } else {
-                                celebrate = false;
-                            }
-                        }
-                        EntityType::Goat => {
-                            if let Some(tile) = field.get_tile_type(entity.location.x, entity.location.y, &tile_q) {
-                                if tile != TileType::GoatPen {
-                                    celebrate = false;
-                                }
-                            } else {
-                                celebrate = false;
-                            }
-                        }
-                        EntityType::Wagon => {
-                            if let Some(tile) = field.get_tile_type(entity.location.x, entity.location.y, &tile_q) {
-                                if tile != TileType::Corral {
-                                    celebrate = false;
-                                }
-                            } else {
-                                celebrate = false;
-                            }
-                        }
-                        _ => {}
-                    }
-                }
                 for entity in field.get_entities(&entity_q.to_readonly()) {
                     if entity.entity_type != simulating.simulation_step {
                         continue;
@@ -167,7 +119,13 @@ pub fn simulate(
             saving.saving = SaveStage::SaveUndo;
         }
     }
-    if !simulating.simulating {
+    if !simulating.simulating && !simulating.loss {
         simulating.simulation_step = EntityType::None;
+        if field.check_win(&entity_q.to_readonly(), &tile_q) {
+            for mut entity in &mut entity_q {
+                entity.state = EntityState::Celebrating;
+            }
+            simulating.win = true;
+        }
     }
 }

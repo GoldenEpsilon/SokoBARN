@@ -480,16 +480,7 @@ pub fn animation_system(
     for (mut sprite, mut timer, mut entity) in &mut q_entities {
         timer.tick(time.delta());
         if timer.just_finished() {
-            sprite.index = (sprite.index + 1) %  
-            match entity.state {
-                EntityState::Idle => {2}
-                EntityState::Walking => {4}
-                EntityState::Sliding => {4}
-                EntityState::Eating => {2}
-                EntityState::Celebrating => {4}
-                EntityState::Special => {2}
-                EntityState::Failure => {4}
-            } + 4 *
+            let offset = 4 *
             match entity.state {
                 EntityState::Idle => {0}
                 EntityState::Walking => {1}
@@ -499,14 +490,27 @@ pub fn animation_system(
                 EntityState::Special => {6}
                 EntityState::Failure => {2}
             };
+            sprite.index = (sprite.index + 1) %  
+            match entity.state {
+                EntityState::Idle => {2}
+                EntityState::Walking => {4}
+                EntityState::Sliding => {4}
+                EntityState::Eating => {2}
+                EntityState::Celebrating => {4}
+                EntityState::Special => {2}
+                EntityState::Failure => {4}
+            } + offset;
             if let Some(prev_state) = entity.prev_state {
                 if prev_state != entity.state {
-                    sprite.index = 0;
+                    sprite.index = offset;
                 }
                 //Animation Finished!
-                if prev_state == entity.state && sprite.index == 0 {
+                if prev_state == entity.state && sprite.index == offset {
                     if entity.state == EntityState::Special && entity.entity_type == EntityType::Goat {
                         entity.state = EntityState::Idle;
+                    }
+                    if entity.state == EntityState::Failure {
+                        sprite.index = offset + 1;
                     }
                 }
             }
