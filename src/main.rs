@@ -123,7 +123,7 @@ fn main() {
         .add_systems(Update, (mouse_controls, apply_deferred).chain().run_if(in_state(GameState::Gameplay)))
 
         //Post Update Visuals
-        .add_systems(PostUpdate, (fence_system.run_if(in_state(GameState::Gameplay)), animation_system, resize_system, apply_deferred).chain())
+        .add_systems(PostUpdate, (fence_system.run_if(in_state(GameState::Gameplay)), animation_system, effect_system, resize_system, apply_deferred).chain())
         .run();
 }
 
@@ -171,6 +171,7 @@ fn setup(
     sprites.insert("Pens".to_owned(), texture_atlases.add(TextureAtlas::from_grid(asset_server.load("Sprites/Pens.png"), Vec2::new(48.0, 48.0), 5, 3, None, None)));
     sprites.insert("Cursor".to_owned(), texture_atlases.add(TextureAtlas::from_grid(asset_server.load("Sprites/Cursor.png"), Vec2::new(64.0, 64.0), 5, 1, None, None)));
     sprites.insert("Rain".to_owned(), texture_atlases.add(TextureAtlas::from_grid(asset_server.load("Sprites/Rain.png"), Vec2::new(5.0, 5.0), 4, 1, None, None)));
+    sprites.insert("MuddySplash".to_owned(), texture_atlases.add(TextureAtlas::from_grid(asset_server.load("Sprites/MuddySplash.png"), Vec2::new(28.0, 28.0), 4, 1, None, None)));
 
     commands.insert_resource(Sprites { sprites: sprites });
 
@@ -191,6 +192,14 @@ fn setup(
     sounds.insert("Goat2".to_owned(), asset_server.load("Sounds/Goat2.ogg"));
     sounds.insert("Goat3".to_owned(), asset_server.load("Sounds/Goat3.ogg"));
     sounds.insert("Goat4".to_owned(), asset_server.load("Sounds/Goat4.ogg"));
+    sounds.insert("Cart1".to_owned(), asset_server.load("Sounds/HorseAttach1.ogg"));
+    sounds.insert("Cart2".to_owned(), asset_server.load("Sounds/HorseAttach2.ogg"));
+    sounds.insert("Cart3".to_owned(), asset_server.load("Sounds/HorseAttach3.ogg"));
+    sounds.insert("Mud1".to_owned(), asset_server.load("Sounds/Mud1.ogg"));
+    sounds.insert("Mud2".to_owned(), asset_server.load("Sounds/Mud2.ogg"));
+    sounds.insert("Mud3".to_owned(), asset_server.load("Sounds/Mud3.ogg"));
+    sounds.insert("Mud4".to_owned(), asset_server.load("Sounds/Mud4.ogg"));
+    sounds.insert("GoatCrash".to_owned(), asset_server.load("Sounds/GoatCrash.ogg"));
     sounds.insert("ChickenFly1".to_owned(), asset_server.load("Sounds/ChickenFly1.ogg"));
     sounds.insert("ChickenFly2".to_owned(), asset_server.load("Sounds/ChickenFly2.ogg"));
     sounds.insert("ChickenFly3".to_owned(), asset_server.load("Sounds/ChickenFly3.ogg"));
@@ -279,11 +288,11 @@ fn resize_system(mut object_set: ParamSet<(
         let size = (window.width()/ASPECT_RATIO_W).min(window.height()/ASPECT_RATIO_H)/TILE_SIZE;
         for (mut transform, game_entity) in &mut object_set.p0().iter_mut() {
             transform.scale = Vec3::splat(size);
-            transform.translation = Vec3{ 
+            transform.translation = transform.translation.lerp(Vec3{ 
                 x: (game_entity.location.x as f32 - TILE_OFFSET_X)*TILE_SIZE*size, 
                 y: (game_entity.location.y as f32 - TILE_OFFSET_Y)*TILE_SIZE*size, 
                 z: -(game_entity.location.y as f32)*0.1 + -(game_entity.location.x as f32)*0.01 + game_entity.location.z as f32 
-            };
+            }, 0.2);
         }
         for (mut transform, tile) in &mut object_set.p1().iter_mut() {
             transform.scale = Vec3::splat(size);
@@ -388,6 +397,21 @@ pub fn animation_system(
                 EntityState::Special => {6}
                 EntityState::Failure => {2}
             };
+        }
+    }
+}
+
+pub fn effect_system(
+    mut commands: Commands,
+    mut q_entities: Query<(Entity, &mut TextureAtlasSprite, &mut Effect)>,
+    time: Res<Time>,){
+    for (effect, mut sprite, mut timer) in &mut q_entities {
+        timer.tick(time.delta());
+        if timer.just_finished() {
+            sprite.index = sprite.index + 1;
+            if sprite.index >= 4 {
+                commands.entity(effect).despawn();
+            }
         }
     }
 }

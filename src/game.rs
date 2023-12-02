@@ -97,6 +97,9 @@ pub struct PlayModeTick(Timer);
 #[derive(Component, Deref, DerefMut)]
 pub struct AnimationTimer(Timer);
 
+#[derive(Component, Deref, DerefMut)]
+pub struct Effect(Timer);
+
 #[derive(PartialEq)]
 #[derive(Clone, Copy)]
 #[derive(Serialize, Deserialize, Debug)]
@@ -809,6 +812,20 @@ impl Field {
                 if let Some(entity_id) = self.tiles[x][y].2 {
                     if let Ok(entity) = entity_q.get(entity_id) {
                         if best.1 > x - animalx {best = (entity.location, x - animalx);}
+                        if best.1 == x - animalx {
+                            match self.get_entity_type(x, y, &entity_q) {
+                                Some(EntityType::AllFood) => {
+                                    if animal.entity_type == EntityType::Goat {
+                                        best = (entity.location, x - animalx);
+                                    }
+                                }
+                                _ => {
+                                    if animal.entity_type != EntityType::Goat {
+                                        best = (entity.location, x - animalx);
+                                    }
+                                }
+                            }
+                        }
                         break;
                     }
                 }
@@ -847,6 +864,20 @@ impl Field {
                 if let Some(entity_id) = self.tiles[x][y].2 {
                     if let Ok(entity) = entity_q.get(entity_id) {
                         if best.1 > y - animaly {best = (entity.location, y - animaly);}
+                        if best.1 == y - animaly {
+                            match self.get_entity_type(x, y, &entity_q) {
+                                Some(EntityType::AllFood) => {
+                                    if animal.entity_type == EntityType::Goat {
+                                        best = (entity.location, x - animalx);
+                                    }
+                                }
+                                _ => {
+                                    if animal.entity_type != EntityType::Goat {
+                                        best = (entity.location, x - animalx);
+                                    }
+                                }
+                            }
+                        }
                         break;
                     }
                 }
@@ -885,6 +916,20 @@ impl Field {
                 if let Some(entity_id) = self.tiles[x][y].2 {
                     if let Ok(entity) = entity_q.get(entity_id) {
                         if best.1 > animalx - x {best = (entity.location, animalx - x);}
+                        if best.1 == animalx - x {
+                            match self.get_entity_type(x, y, &entity_q) {
+                                Some(EntityType::AllFood) => {
+                                    if animal.entity_type == EntityType::Goat {
+                                        best = (entity.location, x - animalx);
+                                    }
+                                }
+                                _ => {
+                                    if animal.entity_type != EntityType::Goat {
+                                        best = (entity.location, x - animalx);
+                                    }
+                                }
+                            }
+                        }
                         break;
                     }
                 }
@@ -924,6 +969,20 @@ impl Field {
                 if let Some(entity_id) = self.tiles[x][y].2 {
                     if let Ok(entity) = entity_q.get(entity_id) {
                         if best.1 > animaly - y {best = (entity.location, animaly - y);}
+                        if best.1 == animaly - y {
+                            match self.get_entity_type(x, y, &entity_q) {
+                                Some(EntityType::AllFood) => {
+                                    if animal.entity_type == EntityType::Goat {
+                                        best = (entity.location, x - animalx);
+                                    }
+                                }
+                                _ => {
+                                    if animal.entity_type != EntityType::Goat {
+                                        best = (entity.location, x - animalx);
+                                    }
+                                }
+                            }
+                        }
                         break;
                     }
                 }
@@ -986,7 +1045,8 @@ impl Field {
         entity_q: &mut Query<&mut GameEntity>, 
         tile_q: &Query<&Tile>,
         sounds: &Res<Sounds>,
-        mut rng: &mut ResMut<GlobalEntropy<ChaCha8Rng>>,
+        sprites: &Res<Sprites>,
+        rng: &mut ResMut<GlobalEntropy<ChaCha8Rng>>,
         entity: GameEntity,
         slide_direction: MoveDirection) -> bool{
 
@@ -1007,7 +1067,7 @@ impl Field {
         }
         let x: usize = ((startx as isize) + xoffset) as usize;
         let y: usize = ((starty as isize) + yoffset) as usize;
-        return self.move_entity(commands, entity_q, tile_q, sounds, rng, entity, Location{x, y, z:0})
+        return self.move_entity(commands, entity_q, tile_q, sounds, sprites, rng, entity, Location{x, y, z:0})
     }
 
     pub fn move_entity(&mut self,
@@ -1015,6 +1075,7 @@ impl Field {
         entity_q: &mut Query<&mut GameEntity>, 
         tile_q: &Query<&Tile>,
         sounds: &Res<Sounds>,
+        sprites: &Res<Sprites>,
         rng: &mut ResMut<GlobalEntropy<ChaCha8Rng>>,
         entity: GameEntity, 
         target_location: Location) -> bool{
@@ -1159,6 +1220,14 @@ impl Field {
                                             }else{
                                                 //SLAM
                                                 println!("SLAM");
+                                                commands.spawn(AudioBundle {
+                                                    source: sounds.sounds["GoatCrash"].to_owned(),
+                                                    settings: PlaybackSettings{
+                                                        mode: PlaybackMode::Despawn,
+                                                        ..default()
+                                                    },
+                                                    ..default()
+                                                });
                                                 entity.state = EntityState::Special;
                                                 target_entity.last_direction = move_direction;
                                                 target_entity.location.x = tile_slam_target_x;
@@ -1166,7 +1235,7 @@ impl Field {
                                                 target_entity.target_location = target_entity.location;
                                                 target_entity.state = EntityState::Idle;
                                                 if let Ok(tile) = tile_q.get(self.tiles[tile_slam_target_x][tile_slam_target_y].0) {
-                                                    if tile.tile_type == TileType::Mud || tile.tile_type == TileType::MuddyRocks {
+                                                    if (tile.tile_type == TileType::Mud || tile.tile_type == TileType::MuddyRocks) && target_entity.entity_type != EntityType::Pig {
                                                         target_entity.state = EntityState::Sliding;
                                                     }
                                                 }
@@ -1269,6 +1338,24 @@ impl Field {
                         if moving_entity.target_location.x == moving_entity.location.x && moving_entity.target_location.y == moving_entity.location.y {
                             moving_entity.state = EntityState::Idle;
                         }
+                    }else{
+                        commands.spawn(AudioBundle {
+                            source: sounds.sounds[&format!("Mud{}", (rng.next_u32() % 4) + 1)].to_owned(),
+                            settings: PlaybackSettings{
+                                mode: PlaybackMode::Despawn,
+                                ..default()
+                            },
+                            ..default()
+                        });
+                        let mud_effect = commands.spawn((SpriteSheetBundle {
+                                texture_atlas: sprites.sprites["MuddySplash"].clone(),
+                                sprite: TextureAtlasSprite::new(0),
+                                transform: Transform::from_xyz(0.0, 0.0, 0.1),
+                                ..default()
+                            }, Effect(Timer::from_seconds(ANIMATION_SPEED, TimerMode::Repeating)),
+                            /*Scaling { position: Vec2{ x: 5.0, y: 5.0 } }*/)).id();
+                        commands.entity(entity_id).push_children(&[mud_effect]);
+                        
                     }
 
                     match entity.entity_type {
@@ -1323,6 +1410,16 @@ impl Field {
                                 ..default()
                             });
                         }
+                        EntityType::Wagon => {
+                            commands.spawn(AudioBundle {
+                                source: sounds.sounds[&format!("Cart{}", (rng.next_u32() % 3) + 1)].to_owned(),
+                                settings: PlaybackSettings{
+                                    mode: PlaybackMode::Despawn,
+                                    ..default()
+                                },
+                                ..default()
+                            });
+                        }
                         _ => {}
                     }
 
@@ -1362,6 +1459,14 @@ impl Field {
                                     }else{
                                         //SLAM
                                         println!("SLAM");
+                                        commands.spawn(AudioBundle {
+                                            source: sounds.sounds["GoatCrash"].to_owned(),
+                                            settings: PlaybackSettings{
+                                                mode: PlaybackMode::Despawn,
+                                                ..default()
+                                            },
+                                            ..default()
+                                        });
                                         entity.state = EntityState::Special;
                                         slam_entity.last_direction = move_direction;
                                         slam_entity.location.x = tile_slam_target_x;
@@ -1369,7 +1474,7 @@ impl Field {
                                         slam_entity.target_location = slam_entity.location;
                                         slam_entity.state = EntityState::Idle;
                                         if let Ok(tile) = tile_q.get(self.tiles[tile_slam_target_x][tile_slam_target_y].0) {
-                                            if tile.tile_type == TileType::Mud || tile.tile_type == TileType::MuddyRocks {
+                                            if (tile.tile_type == TileType::Mud || tile.tile_type == TileType::MuddyRocks) && slam_entity.entity_type != EntityType::Pig {
                                                 slam_entity.state = EntityState::Sliding;
                                             }
                                         }
@@ -1408,38 +1513,7 @@ impl Field {
 }
 
 pub fn setup_level(mut commands: Commands, sprites: Res<Sprites>){
-    let mut field = Field::new(&mut commands, &sprites, 14, 8);
-    
-    let plan = vec![
-        vec![0,0,1,1,1,1,1,1,1,1,1,1,1,1],
-        vec![0,0,1,0,0,0,0,0,0,0,0,0,0,1],
-        vec![0,0,1,0,0,0,0,0,0,0,0,0,0,1],
-        vec![0,0,1,0,0,0,0,0,2,2,2,0,0,1],
-        vec![0,0,1,0,0,0,0,3,1,1,1,0,0,1],
-        vec![0,0,1,0,0,0,3,4,1,5,0,0,0,1],
-        vec![1,1,1,0,0,0,0,3,1,0,0,0,0,1],
-        vec![1,0,6,0,0,0,0,0,0,0,0,0,0,1]
-    ];
-
-    let mut x = 0;
-    while x < 14 {
-        let mut y = 0;
-        while y < 8 {
-            match plan[7-y][x] {
-                1 => {field.set_tile(&mut commands, &sprites, TileType::Fence, x, y);}
-                2 => {field.set_tile(&mut commands, &sprites, TileType::Mud, x, y);}
-                3 => {field.set_tile(&mut commands, &sprites, TileType::Rocks, x, y);}
-                5 => {field.set_tile(&mut commands, &sprites, TileType::Corral, x, y);}
-                _ => {}
-            }
-            y += 1;
-        }
-        x += 1;
-    }
-
-    field.set_entity(&mut commands, &sprites, EntityType::Goat, 2, 0);
-
-    field.set_entity(&mut commands, &sprites, EntityType::AllFood, 5, 0);
+    let field = Field::new(&mut commands, &sprites, 14, 8);
 
     commands.insert_resource(field);
 }
@@ -1517,6 +1591,7 @@ pub fn mouse_controls(
             if let Ok(mut cursor) = q_cursor.get_single_mut() {
                 if !simulation.simulating && !illegal_y_pos {
                     if cursor.holding != EntityType::None 
+                        && field.get_entity_type(tile_pos_x, tile_pos_y, &q_entity) == None
                         && (buttons.pressed(MouseButton::Left) || buttons.pressed(MouseButton::Right)) != cursor.drag_drop 
                         && (Vec2::distance(cursor.pos, cursor.starting_pos) > CURSOR_MIN_MOVE_DIST || buttons.just_pressed(MouseButton::Left)) {
                         match field.get_tile_type(tile_pos_x, tile_pos_y, &q_tile) {
@@ -1524,13 +1599,12 @@ pub fn mouse_controls(
                             _ => {
                                 field.set_entity(&mut commands, &sprites, cursor.holding, tile_pos_x, tile_pos_y);
                                 cursor.holding = EntityType::None;
+                                cursor_holding = true;
                             }
                         }
-                    }
-                    if buttons.just_released(MouseButton::Left) && Vec2::distance(cursor.pos, cursor.starting_pos) < CURSOR_MIN_MOVE_DIST {
+                    }else if buttons.just_released(MouseButton::Left) && Vec2::distance(cursor.pos, cursor.starting_pos) < CURSOR_MIN_MOVE_DIST {
                         cursor.drag_drop = false;
-                    }
-                    if cursor.holding == EntityType::None {
+                    }else if cursor.holding == EntityType::None {
                         if buttons.just_pressed(MouseButton::Left) {
                             let food = field.get_entity_type(tile_pos_x, tile_pos_y, &q_entity);
                             match food {
@@ -1569,7 +1643,6 @@ pub fn mouse_controls(
                         _ => {""}
                     }.to_owned();
                 }
-                println!("{}", cursor_holding);
                 if buttons.just_pressed(MouseButton::Left) && !cursor_holding {
                     match field.get_tile_type(tile_pos_x, tile_pos_y, &q_tile) {
                         Some(TileType::Grass) => {field.set_tile(&mut commands, &sprites, TileType::Fence, tile_pos_x, tile_pos_y);}

@@ -8,6 +8,7 @@ pub fn simulate(
     mut field: ResMut<Field>,
     time: Res<Time>,
     sounds: Res<Sounds>,
+    sprites: Res<Sprites>,
     mut rng: ResMut<GlobalEntropy<ChaCha8Rng>>,
     mut simulating: ResMut<SimulateRes>,
     mut entity_q: Query<&mut GameEntity>,
@@ -95,7 +96,7 @@ pub fn simulate(
                                 EntityState::Idle => {
                                     let target_location = field.can_see_food(entity, &entity_q.to_readonly(), &tile_q);
                                     if target_location.x != entity.location.x || target_location.y != entity.location.y {
-                                        if !field.move_entity(&mut commands, &mut entity_q, &tile_q, &sounds, &mut rng, entity, target_location) {
+                                        if !field.move_entity(&mut commands, &mut entity_q, &tile_q, &sounds, &sprites, &mut rng, entity, target_location) {
                                             simulating.simulating = false;
                                             simulating.loss = true;
                                             println!("FAIL STATE");
@@ -107,7 +108,7 @@ pub fn simulate(
                                     }
                                 }
                                 EntityState::Walking => {
-                                    if !field.move_entity(&mut commands, &mut entity_q, &tile_q, &sounds, &mut rng, entity, entity.target_location) {
+                                    if !field.move_entity(&mut commands, &mut entity_q, &tile_q, &sounds, &sprites, &mut rng, entity, entity.target_location) {
                                         simulating.simulating = false;
                                         simulating.loss = true;
                                         println!("FAIL STATE");
@@ -118,7 +119,7 @@ pub fn simulate(
                                 }
                                 EntityState::Sliding => {
                                     if entity.last_direction != MoveDirection::None {
-                                        if !field.slide_entity(&mut commands, &mut entity_q, &tile_q, &sounds, &mut rng, entity, entity.last_direction) {
+                                        if !field.slide_entity(&mut commands, &mut entity_q, &tile_q, &sounds, &sprites, &mut rng, entity, entity.last_direction) {
                                             simulating.simulating = false;
                                             simulating.loss = true;
                                             println!("FAIL STATE");
