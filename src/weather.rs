@@ -5,12 +5,21 @@ use crate::*;
 #[derive(Resource)]
 #[derive(Default)]
 pub struct Weather {
-    pub raining: bool,
-    pub cloudy: bool,
-    pub night: bool,
-    pub thunder: bool,
+    pub weather: WeatherType,
     pub raindrops: u128,
     pub raindrop_count: u128,
+}
+
+
+#[derive(PartialEq)]
+#[derive(Clone, Copy)]
+#[derive(Default)]
+pub enum WeatherType {
+    #[default] Sunny,
+    Cloudy,
+    Raining,
+    Night,
+    Thunder
 }
 
 #[derive(Component, Deref, DerefMut)]
@@ -23,7 +32,7 @@ pub fn weather_system(mut commands: Commands,
     mut rng: ResMut<GlobalEntropy<ChaCha8Rng>>,
     mut weather: ResMut<Weather>,) {
     
-    if weather.raining {
+    if weather.weather == WeatherType::Raining {
         weather.raindrops += time.delta().as_micros();
         let mut raindrops = weather.raindrops / weather.raindrop_count;
         weather.raindrops = weather.raindrops % weather.raindrop_count;

@@ -24,6 +24,28 @@ pub struct MenuData {
 }
 
 #[derive(Resource)]
+pub struct WorldList {
+    pub worlds: Vec<LevelWorld>,
+    pub index: usize
+}
+
+pub struct LevelWorld {
+    pub name: String,
+    pub levels: Vec<LevelData>
+}
+
+#[derive(Default)]
+pub struct LevelData {
+    pub name: String,
+    pub id: String,
+    pub par: usize,
+    pub author_par: usize,
+    pub record: usize,
+    pub unlock_req: usize,
+    pub weather: WeatherType
+}
+
+#[derive(Resource)]
 pub struct PauseMenuData {
     pub button_entities: Vec<Entity>,
 }
@@ -46,6 +68,9 @@ pub enum SaveStage{
 
 #[derive(PartialEq)]
 pub enum ButtonEffect{
+    None,
+    PrevWorld,
+    NextWorld,
     LevelSelect,
     MainMenu,
     Play,
@@ -179,7 +204,11 @@ pub fn menu_setup(mut commands: Commands, asset_server: Res<AssetServer>, mut ke
     commands.insert_resource(MenuData { button_entities });
 }
 
-pub fn level_select_setup(mut commands: Commands, asset_server: Res<AssetServer>, mut menu_data: ResMut<MenuData>) {
+pub fn level_select_setup(
+    mut commands: Commands, 
+    asset_server: Res<AssetServer>, 
+    mut menu_data: ResMut<MenuData>,
+    world_data: Res<WorldList>) {
     let text_style = TextStyle {
         font: asset_server.load("Fonts/MessyThicc.ttf"),
         font_size: 20.0,
@@ -188,19 +217,302 @@ pub fn level_select_setup(mut commands: Commands, asset_server: Res<AssetServer>
 
     let image = asset_server.load("UISign.png");
     
+    let world = &world_data.worlds[world_data.index];
+
+    let mut menu = commands.spawn(NodeBundle {
+        style: Style {
+            width: Val::Percent(100.0),
+            height: Val::Percent(100.0),
+            align_items: AlignItems::Center,
+            justify_content: JustifyContent::Center,
+            justify_items: JustifyItems::Center,
+            display: Display::Grid,
+            grid_template_columns: vec![GridTrack::auto(), GridTrack::auto()],
+            grid_template_rows: vec![GridTrack::auto(), GridTrack::auto(), GridTrack::auto(), GridTrack::auto(), GridTrack::auto(), GridTrack::auto()],
+            ..default()
+        },
+        ..default()
+    }
+    );
+
+    menu.with_children(|parent| {
+        parent.spawn(ButtonBundle {
+            style: Style {
+                width: Val::Px(160.0),
+                height: Val::Px(32.0),
+                //border: UiRect::all(Val::Px(5.0)),
+                // horizontally center child text
+                justify_content: JustifyContent::Center,
+                // vertically center child text
+                align_items: AlignItems::Center,
+                margin: UiRect::bottom(Val::Px(10.0)),
+                grid_column: GridPlacement::span(2),
+                ..default()
+            },
+            background_color: Color::NONE.into(),
+            ..default()
+        })
+        .with_children(|parent| {
+            parent.spawn(ImageBundle {
+                image: UiImage::new(image.clone()),
+                style: Style {
+                    width: Val::Percent(100.0),
+                    height: Val::Percent(100.0),
+                    justify_content: JustifyContent::Center,
+                    align_items: AlignItems::Center,
+                    ..Default::default()
+                },
+                background_color: Color::WHITE.into(),
+                ..Default::default()
+            })
+            .with_children(|parent| {
+                parent.spawn(TextBundle::from_section(
+                    world.name.as_str(),
+                    text_style.to_owned()
+                ));
+            });
+        });
+    });
+
+    menu.with_children(|parent| {
+        parent.spawn((ButtonBundle {
+            style: Style {
+                width: Val::Px(160.0),
+                height: Val::Px(32.0),
+                //border: UiRect::all(Val::Px(5.0)),
+                // horizontally center child text
+                justify_content: JustifyContent::Center,
+                // vertically center child text
+                align_items: AlignItems::Center,
+                margin: UiRect::bottom(Val::Px(10.0)),
+                grid_column: GridPlacement::span(2),
+                ..default()
+            },
+            background_color: Color::NONE.into(),
+            ..default()
+        }, 
+        MenuButton{
+            button_effect: ButtonEffect::PrevWorld,
+            pickup_object: EntityType::None,
+            level: "".to_owned(),
+            hovering: false, 
+            hover_time: 0.0
+        }))
+        .with_children(|parent| {
+            parent.spawn(ImageBundle {
+                image: UiImage::new(image.clone()),
+                style: Style {
+                    width: Val::Percent(100.0),
+                    height: Val::Percent(100.0),
+                    justify_content: JustifyContent::Center,
+                    align_items: AlignItems::Center,
+                    ..Default::default()
+                },
+                background_color: Color::WHITE.into(),
+                ..Default::default()
+            })
+            .with_children(|parent| {
+                parent.spawn(TextBundle::from_section(
+                    "V",
+                    text_style.to_owned()
+                ));
+            });
+        });
+    });
+
+    for level in &world.levels {
+        menu.with_children(|parent| {
+            parent.spawn((ButtonBundle {
+                style: Style {
+                    width: Val::Px(160.0),
+                    height: Val::Px(32.0),
+                    //border: UiRect::all(Val::Px(5.0)),
+                    // horizontally center child text
+                    justify_content: JustifyContent::Center,
+                    // vertically center child text
+                    align_items: AlignItems::Center,
+                    margin: UiRect::bottom(Val::Px(10.0)),
+                    ..default()
+                },
+                background_color: Color::NONE.into(),
+                ..default()
+            }, 
+            MenuButton{
+                button_effect: ButtonEffect::Play,
+                pickup_object: EntityType::None,
+                level: level.id.to_owned(),
+                hovering: false, 
+                hover_time: 0.0
+            }))
+            .with_children(|parent| {
+                parent.spawn(ImageBundle {
+                    image: UiImage::new(image.clone()),
+                    style: Style {
+                        width: Val::Percent(100.0),
+                        height: Val::Percent(100.0),
+                        justify_content: JustifyContent::Center,
+                        align_items: AlignItems::Center,
+                        ..Default::default()
+                    },
+                    background_color: Color::WHITE.into(),
+                    ..Default::default()
+                })
+                .with_children(|parent| {
+                    parent.spawn(TextBundle::from_section(
+                        level.name.to_owned(),
+                        text_style.to_owned()
+                    ));
+                });
+            });
+        });
+    }
+
+    menu.with_children(|parent| {
+        parent.spawn((ButtonBundle {
+            style: Style {
+                width: Val::Px(160.0),
+                height: Val::Px(32.0),
+                //border: UiRect::all(Val::Px(5.0)),
+                // horizontally center child text
+                justify_content: JustifyContent::Center,
+                // vertically center child text
+                align_items: AlignItems::Center,
+                margin: UiRect::bottom(Val::Px(10.0)),
+                grid_column: GridPlacement::span(2),
+                ..default()
+            },
+            background_color: Color::NONE.into(),
+            ..default()
+        }, 
+        MenuButton{
+            button_effect: ButtonEffect::NextWorld,
+            pickup_object: EntityType::None,
+            level: "".to_owned(),
+            hovering: false, 
+            hover_time: 0.0
+        }))
+        .with_children(|parent| {
+            parent.spawn(ImageBundle {
+                image: UiImage::new(image.clone()),
+                style: Style {
+                    width: Val::Percent(100.0),
+                    height: Val::Percent(100.0),
+                    justify_content: JustifyContent::Center,
+                    align_items: AlignItems::Center,
+                    ..Default::default()
+                },
+                background_color: Color::WHITE.into(),
+                ..Default::default()
+            })
+            .with_children(|parent| {
+                parent.spawn(TextBundle::from_section(
+                    "V",
+                    text_style.to_owned()
+                ));
+            });
+        });
+    });
+
     menu_data.button_entities = vec![
+        menu.id(), /*
         commands.spawn(NodeBundle {
             style: Style {
                 width: Val::Percent(100.0),
                 height: Val::Percent(100.0),
                 align_items: AlignItems::Center,
                 justify_content: JustifyContent::Center,
-                flex_direction: FlexDirection::Column,
+                justify_items: JustifyItems::Center,
+                display: Display::Grid,
+                grid_template_columns: vec![GridTrack::auto(), GridTrack::auto()],
+                grid_template_rows: vec![GridTrack::auto(), GridTrack::auto(), GridTrack::auto(), GridTrack::auto(), GridTrack::auto(), GridTrack::auto()],
                 ..default()
             },
             ..default()
         }
         )
+        .with_children(|parent| {
+            parent.spawn(ButtonBundle {
+                style: Style {
+                    width: Val::Px(160.0),
+                    height: Val::Px(32.0),
+                    //border: UiRect::all(Val::Px(5.0)),
+                    // horizontally center child text
+                    justify_content: JustifyContent::Center,
+                    // vertically center child text
+                    align_items: AlignItems::Center,
+                    margin: UiRect::bottom(Val::Px(10.0)),
+                    grid_column: GridPlacement::span(2),
+                    ..default()
+                },
+                background_color: Color::NONE.into(),
+                ..default()
+            })
+            .with_children(|parent| {
+                parent.spawn(ImageBundle {
+                    image: UiImage::new(image.clone()),
+                    style: Style {
+                        width: Val::Percent(100.0),
+                        height: Val::Percent(100.0),
+                        justify_content: JustifyContent::Center,
+                        align_items: AlignItems::Center,
+                        ..Default::default()
+                    },
+                    background_color: Color::WHITE.into(),
+                    ..Default::default()
+                })
+                .with_children(|parent| {
+                    parent.spawn(TextBundle::from_section(
+                        "Tutorials",
+                        text_style.to_owned()
+                    ));
+                });
+            });
+        })
+        .with_children(|parent| {
+            parent.spawn((ButtonBundle {
+                style: Style {
+                    width: Val::Px(160.0),
+                    height: Val::Px(32.0),
+                    //border: UiRect::all(Val::Px(5.0)),
+                    // horizontally center child text
+                    justify_content: JustifyContent::Center,
+                    // vertically center child text
+                    align_items: AlignItems::Center,
+                    margin: UiRect::bottom(Val::Px(10.0)),
+                    grid_column: GridPlacement::span(2),
+                    ..default()
+                },
+                background_color: Color::NONE.into(),
+                ..default()
+            }, 
+            MenuButton{
+                button_effect: ButtonEffect::PrevWorld,
+                pickup_object: EntityType::None,
+                level: "".to_owned(),
+                hovering: false, 
+                hover_time: 0.0
+            }))
+            .with_children(|parent| {
+                parent.spawn(ImageBundle {
+                    image: UiImage::new(image.clone()),
+                    style: Style {
+                        width: Val::Percent(100.0),
+                        height: Val::Percent(100.0),
+                        justify_content: JustifyContent::Center,
+                        align_items: AlignItems::Center,
+                        ..Default::default()
+                    },
+                    background_color: Color::WHITE.into(),
+                    ..Default::default()
+                })
+                .with_children(|parent| {
+                    parent.spawn(TextBundle::from_section(
+                        "V",
+                        text_style.to_owned()
+                    ));
+                });
+            });
+        })
         .with_children(|parent| {
             parent.spawn((ButtonBundle {
                 style: Style {
@@ -508,7 +820,52 @@ pub fn level_select_setup(mut commands: Commands, asset_server: Res<AssetServer>
                     ));
                 });
             });
-        }).id()];
+        })
+        .with_children(|parent| {
+            parent.spawn((ButtonBundle {
+                style: Style {
+                    width: Val::Px(160.0),
+                    height: Val::Px(32.0),
+                    //border: UiRect::all(Val::Px(5.0)),
+                    // horizontally center child text
+                    justify_content: JustifyContent::Center,
+                    // vertically center child text
+                    align_items: AlignItems::Center,
+                    margin: UiRect::bottom(Val::Px(10.0)),
+                    grid_column: GridPlacement::span(2),
+                    ..default()
+                },
+                background_color: Color::NONE.into(),
+                ..default()
+            }, 
+            MenuButton{
+                button_effect: ButtonEffect::NextWorld,
+                pickup_object: EntityType::None,
+                level: "".to_owned(),
+                hovering: false, 
+                hover_time: 0.0
+            }))
+            .with_children(|parent| {
+                parent.spawn(ImageBundle {
+                    image: UiImage::new(image.clone()),
+                    style: Style {
+                        width: Val::Percent(100.0),
+                        height: Val::Percent(100.0),
+                        justify_content: JustifyContent::Center,
+                        align_items: AlignItems::Center,
+                        ..Default::default()
+                    },
+                    background_color: Color::WHITE.into(),
+                    ..Default::default()
+                })
+                .with_children(|parent| {
+                    parent.spawn(TextBundle::from_section(
+                        "V",
+                        text_style.to_owned()
+                    ));
+                });
+            });
+        }).id()*/];
 }
 
 pub fn pause_menu_setup(mut commands: Commands, asset_server: Res<AssetServer>, mut pause_menu_data: ResMut<PauseMenuData>) {
@@ -1220,6 +1577,7 @@ pub fn button_system(
     mut app_exit_events: ResMut<Events<bevy::app::AppExit>>,
     mut cursor_q: Query<&mut Cursor>,
     mut round_counter_q: Query<&mut Text, With<RoundCounter>>,
+    mut world_data: ResMut<WorldList>
 ) {
     for (interaction, mut menu_button) in &mut interaction_query {
         match *interaction {
@@ -1255,6 +1613,19 @@ pub fn button_system(
                         }
                     }
                     ButtonEffect::Settings => {}
+                    ButtonEffect::NextWorld => {
+                        if world_data.index < world_data.worlds.len() - 1 {
+                            world_data.index += 1;
+                            next_state.set(GameState::ReloadLevelSelect);
+                        }
+                    }
+                    ButtonEffect::PrevWorld => {
+                        if world_data.index > 0 {
+                            world_data.index -= 1;
+                            next_state.set(GameState::ReloadLevelSelect);
+                        }
+                    }
+                    _ => {}
                 }
             }
             Interaction::Hovered => {
@@ -1266,6 +1637,10 @@ pub fn button_system(
             }
         }
     }
+}
+
+pub fn enter_level_select(mut next_state: ResMut<NextState<GameState>>) {
+    next_state.set(GameState::LevelSelect);
 }
 
 pub fn button_update_system(

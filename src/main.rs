@@ -28,6 +28,7 @@ pub enum GameState {
     #[default]
     Menu,
     LevelSelect,
+    ReloadLevelSelect,
     Gameplay,
     Pause,
 }
@@ -63,6 +64,12 @@ pub struct Sprites {
 
 #[derive(Resource)]
 #[derive(Default)]
+pub struct UIImages {
+    sprites: HashMap<String, Handle<Image>>
+}
+
+#[derive(Resource)]
+#[derive(Default)]
 pub struct Sounds {
     sounds: HashMap<String, Handle<AudioSource>>
 }
@@ -93,6 +100,7 @@ fn main() {
             JsonAssetPlugin::<SaveFile>::new(&["skb"]),
             EntropyPlugin::<ChaCha8Rng>::default()
         ))
+        .insert_resource(ClearColor(Color::hex("ACD132").unwrap()))
         .add_systems(Startup, setup)
 
         //Menus
@@ -102,6 +110,8 @@ fn main() {
         //Menus
         .add_systems(OnEnter(GameState::LevelSelect), level_select_setup)
         .add_systems(OnExit(GameState::LevelSelect), menu_cleanup)
+
+        .add_systems(OnEnter(GameState::ReloadLevelSelect), enter_level_select)
         
         .add_systems(OnEnter(GameState::Pause), pause_menu_setup)
         .add_systems(OnExit(GameState::Pause), pause_menu_cleanup)
@@ -138,6 +148,31 @@ fn setup(
     commands.insert_resource(PauseMenuData { button_entities: vec![] });
     commands.insert_resource(Weather { raindrop_count: 800 /*400*/, ..default() });
 
+    let mut worlds = vec![];
+
+    worlds.push(LevelWorld{
+        name: "Tutorials".to_owned(),
+        levels: vec![
+            LevelData {
+                name: "Goat 1".to_owned(),
+                id: "Levels/goat-tutorial-1.skb".to_owned(),
+                ..default()
+            }
+        ]
+    });
+    worlds.push(LevelWorld{
+        name: "World 2".to_owned(),
+        levels: vec![
+            LevelData {
+                name: "Goat 1".to_owned(),
+                id: "Levels/goat-tutorial-1.skb".to_owned(),
+                ..default()
+            }
+        ]
+    });
+
+    commands.insert_resource(WorldList { index: 0, worlds });
+
     let camera_bundle = Camera2dBundle::default();
     //camera_bundle.projection.scaling_mode = ScalingMode::Fixed { width: 640.0, height: 360.0 };
     commands.spawn(camera_bundle);
@@ -153,6 +188,12 @@ fn setup(
     {let level = "Levels/blank.skb";levels.insert(level.to_owned(), asset_server.load(level));}
     
     commands.insert_resource(Levels { levels: levels });
+
+    
+    let mut ui_images: HashMap<String, Handle<SaveFile>> = HashMap::new();
+    ui_images.insert("".to_owned(), asset_server.load(""));
+    
+    commands.insert_resource(UIImages { sprites: ui_images });
 
     let mut sprites: HashMap<String, Handle<TextureAtlas>> = HashMap::new();
     sprites.insert("Chicken".to_owned(), texture_atlases.add(TextureAtlas::from_grid(asset_server.load("Sprites/Animals/sokobarn-Chicken.png"), Vec2::new(28.0, 28.0), 4, 7, None, None)));
@@ -216,7 +257,7 @@ fn setup(
     }, Cursor{holding: EntityType::None, drag_drop: true, starting_pos: Vec2::splat(-100.0), pos: Vec2::splat(-100.0)})
     ).with_children(|parent| {
         parent.spawn((AtlasImageBundle {
-            texture_atlas: texture_atlases.add(TextureAtlas::from_grid(asset_server.load("Sprites/Food.png"), Vec2::new(28.0, 28.0), 5, 1, None, None)),
+            texture_atlas: texture_atlases.add(TextureAtlas::from_grid(asset_server.load("Sprites/Misc/sokobarn-Food.png"), Vec2::new(28.0, 28.0), 5, 1, None, None)),
             texture_atlas_image: UiTextureAtlasImage{index:0,..default()},
             style: Style {
                 position_type: PositionType::Absolute,
@@ -228,7 +269,7 @@ fn setup(
             ..default()
         }, CursorObj{index:1}));
         parent.spawn((AtlasImageBundle {
-            texture_atlas: texture_atlases.add(TextureAtlas::from_grid(asset_server.load("Sprites/Cursor.png"), Vec2::new(64.0, 64.0), 5, 1, None, None)),
+            texture_atlas: texture_atlases.add(TextureAtlas::from_grid(asset_server.load("Sprites/Misc/sokobarn-Cursors.png"), Vec2::new(64.0, 64.0), 5, 1, None, None)),
             texture_atlas_image: UiTextureAtlasImage{index:0,..default()},
             style: Style {
                 position_type: PositionType::Absolute,
@@ -259,6 +300,7 @@ fn setup(
                 position_type: PositionType::Absolute,
                 width: Val::Px(512.0),
                 height: Val::Px(288.0),
+                align_self: AlignSelf::Center,
                 ..Default::default()
             },
             z_index: ZIndex::Global(-1),
