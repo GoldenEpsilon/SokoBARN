@@ -147,7 +147,7 @@ fn setup(
     mut texture_atlases: ResMut<Assets<TextureAtlas>>
     ) {
 
-    commands.insert_resource(SaveRes { saving: SaveStage::Idle, save: "level.skb".to_owned(), quicksaves: vec![], editor_mode: None });
+    commands.insert_resource(SaveRes { saving: SaveStage::Idle, save: "level.skb".to_owned(), quicksaves: vec![], ..default() });
     commands.insert_resource(SimulateRes { simulating: false, rounds: 0, ..default() });
     commands.insert_resource(MenuData { button_entities: vec![] });
     commands.insert_resource(PauseMenuData { button_entities: vec![], mode: PauseMenuMode::Pause });
@@ -223,16 +223,19 @@ fn setup(
             LevelData {
                 name: "Rain 1".to_owned(),
                 id: "Levels/Rain-1.skb".to_owned(),
+                weather: WeatherType::Raining,
                 ..default()
             },
             LevelData {
                 name: "Rain 2".to_owned(),
                 id: "Levels/Rain-2.skb".to_owned(),
+                weather: WeatherType::Raining,
                 ..default()
             },
             LevelData {
                 name: "Night 1".to_owned(),
                 id: "Levels/Night-1.skb".to_owned(),
+                weather: WeatherType::Night,
                 ..default()
             },
         ]
@@ -289,6 +292,8 @@ fn setup(
     sprites.insert("Disabled".to_owned(), texture_atlases.add(TextureAtlas::from_grid(asset_server.load("Sprites/Misc/sokobarn-Disabled.png"), Vec2::new(32.0, 32.0), 1, 1, None, None)));
     sprites.insert("Arrow".to_owned(), texture_atlases.add(TextureAtlas::from_grid(asset_server.load("Sprites/Misc/sokobarn-Arrow.png"), Vec2::new(32.0, 32.0), 4, 1, None, None)));
     sprites.insert("Flags".to_owned(), texture_atlases.add(TextureAtlas::from_grid(asset_server.load("Sprites/Misc/sokobarn-Flags.png"), Vec2::new(32.0, 32.0), 4, 24, None, None)));
+    sprites.insert("Medals".to_owned(), texture_atlases.add(TextureAtlas::from_grid(asset_server.load("Sprites/Misc/sokobarn-level-medals.png"), Vec2::new(36.0, 36.0), 4, 1, None, None)));
+    sprites.insert("Working".to_owned(), texture_atlases.add(TextureAtlas::from_grid(asset_server.load("Sprites/Misc/sokobarn-working.png"), Vec2::new(28.0, 28.0), 2, 1, None, None)));
 
     commands.insert_resource(Sprites { sprites: sprites });
 

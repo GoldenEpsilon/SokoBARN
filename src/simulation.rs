@@ -15,7 +15,35 @@ pub fn simulate(
     mut saving: ResMut<SaveRes>,
     mut next_state: ResMut<NextState<GameState>>,
     mut pause_menu_data: ResMut<PauseMenuData>,
+    mut working_q: Query<(&mut TextureAtlasSprite, &mut Visibility, &mut AnimationTimer)>,
     tile_q: Query<&Tile>,){
+    if let Some(indicator) = simulating.indicator {
+        if let Ok((mut tex, mut visible, mut timer)) = working_q.get_mut(indicator){
+            if simulating.simulating {
+                *visible = Visibility::Visible;
+                timer.tick(time.delta());
+                if timer.just_finished() {
+                    tex.index = (tex.index + 1) % 2;
+                }
+            } else {
+                *visible = Visibility::Hidden;
+            }
+        }
+    }
+    if simulating.indicator.is_none() {
+        simulating.indicator = Some(
+        commands.spawn((
+            SpriteSheetBundle {
+                texture_atlas: sprites.sprites["Working"].clone(),
+                sprite: TextureAtlasSprite::new(0),
+                ..default()
+            },
+            Scaling {
+                position: Vec2::new(0.0, 7.0)
+            },
+            AnimationTimer(Timer::from_seconds(ANIMATION_SPEED, TimerMode::Repeating))
+        )).id());
+    }
     if simulating.loss {
         for mut entity in &mut entity_q {
             entity.state = EntityState::Failure;

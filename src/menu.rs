@@ -8,10 +8,9 @@ use bevy::prelude::*;
 pub struct MenuButton{
     pub button_effect: ButtonEffect,
     pub pickup_object: EntityType,
-    pub level: String,
+    pub level: Option<LevelData>,
     pub hovering: bool,
     pub hover_time: f32,
-    pub editor_mode: Option<bool>
 }
 
 #[derive(Component)]
@@ -20,7 +19,9 @@ pub struct ButtonDisabled {
 }
 
 #[derive(Component)]
-pub struct Description;
+pub struct Description{
+    pub part: usize
+}
 
 #[derive(Component)]
 pub struct RoundCounter;
@@ -42,6 +43,7 @@ pub struct LevelWorld {
 }
 
 #[derive(Default)]
+#[derive(Clone)]
 pub struct LevelData {
     pub name: String,
     pub id: String,
@@ -60,11 +62,13 @@ pub struct PauseMenuData {
 }
 
 #[derive(Resource)]
+#[derive(Default)]
 pub struct SaveRes {
     pub saving: SaveStage,
     pub save: String,
     pub quicksaves: Vec<(String, SimulateRes)>,
-    pub editor_mode: Option<bool>
+    pub editor_mode: Option<bool>,
+    pub weather: Option<WeatherType>,
 }
 
 #[derive(PartialEq)]
@@ -76,8 +80,9 @@ pub enum PauseMenuMode{
 }
 
 #[derive(PartialEq)]
+#[derive(Default)]
 pub enum SaveStage{
-    Idle,
+    #[default] Idle,
     Saving,
     Loading,
     SaveUndo,
@@ -164,7 +169,7 @@ pub fn menu_setup(mut commands: Commands, asset_server: Res<AssetServer>, ui_ima
             MenuButton{
                 button_effect: ButtonEffect::LevelSelect,
                 pickup_object: EntityType::None,
-                level: "".to_owned(),
+                level: None,
                 hovering: false, 
                 hover_time: 0.0,
                 ..default()
@@ -208,7 +213,7 @@ pub fn menu_setup(mut commands: Commands, asset_server: Res<AssetServer>, ui_ima
             MenuButton{
                 button_effect: ButtonEffect::Quit,
                 pickup_object: EntityType::None,
-                level: "".to_owned(),
+                level: None,
                 hovering: false, 
                 hover_time: 0.0,
                 ..default()
@@ -332,7 +337,7 @@ pub fn level_select_setup(
         MenuButton{
             button_effect: ButtonEffect::PrevWorld,
             pickup_object: EntityType::None,
-            level: "".to_owned(),
+            level: None,
             hovering: false, 
             hover_time: 0.0,
             ..default()
@@ -384,8 +389,7 @@ pub fn level_select_setup(
             MenuButton{
                 button_effect: ButtonEffect::Play,
                 pickup_object: EntityType::None,
-                level: level.id.to_owned(),
-                editor_mode: Some(level.editor),
+                level: Some(level.to_owned()),
                 hovering: false, 
                 hover_time: 0.0,
                 ..default()
@@ -408,6 +412,11 @@ pub fn level_select_setup(
                         level.name.to_owned(),
                         text_style.to_owned()
                     ));
+                    parent.spawn(AtlasImageBundle {
+                        texture_atlas: sprites.sprites["Medals"].to_owned(),
+                        texture_atlas_image: UiTextureAtlasImage{index:0,..default()},
+                        ..default()
+                    });
                 });
             });
         });
@@ -433,7 +442,7 @@ pub fn level_select_setup(
         MenuButton{
             button_effect: ButtonEffect::NextWorld,
             pickup_object: EntityType::None,
-            level: "".to_owned(),
+            level: None,
             hovering: false, 
             hover_time: 0.0,
             ..default()
@@ -515,7 +524,7 @@ pub fn pause_menu_setup(mut commands: Commands, asset_server: Res<AssetServer>, 
             MenuButton{
                 button_effect: ButtonEffect::MainMenu,
                 pickup_object: EntityType::None,
-                level: "".to_owned(),
+                level: None,
                 hovering: false, 
                 hover_time: 0.0,
                 ..default()
@@ -562,7 +571,7 @@ pub fn pause_menu_setup(mut commands: Commands, asset_server: Res<AssetServer>, 
                 MenuButton{
                     button_effect: ButtonEffect::Reload,
                     pickup_object: EntityType::None,
-                    level: "".to_owned(),
+                    level: None,
                     hovering: false, 
                     hover_time: 0.0,
                     ..default()
@@ -610,7 +619,7 @@ pub fn pause_menu_setup(mut commands: Commands, asset_server: Res<AssetServer>, 
                 MenuButton{
                     button_effect: ButtonEffect::Undo,
                     pickup_object: EntityType::None,
-                    level: "".to_owned(),
+                    level: None,
                     hovering: false, 
                     hover_time: 0.0,
                     ..default()
@@ -658,7 +667,7 @@ pub fn pause_menu_setup(mut commands: Commands, asset_server: Res<AssetServer>, 
                 MenuButton{
                     button_effect: ButtonEffect::Save,
                     pickup_object: EntityType::None,
-                    level: "".to_owned(),
+                    level: None,
                     hovering: false, 
                     hover_time: 0.0,
                     ..default()
@@ -704,7 +713,7 @@ pub fn pause_menu_setup(mut commands: Commands, asset_server: Res<AssetServer>, 
                 MenuButton{
                     button_effect: ButtonEffect::Load,
                     pickup_object: EntityType::None,
-                    level: "".to_owned(),
+                    level: None,
                     hovering: false, 
                     hover_time: 0.0,
                     ..default()
@@ -752,7 +761,7 @@ pub fn pause_menu_setup(mut commands: Commands, asset_server: Res<AssetServer>, 
                 MenuButton{
                     button_effect: ButtonEffect::UnPause,
                     pickup_object: EntityType::None,
-                    level: "".to_owned(),
+                    level: None,
                     hovering: false, 
                     hover_time: 0.0,
                     ..default()
@@ -887,7 +896,7 @@ pub fn game_ui_setup(mut commands: Commands,
                     MenuButton{
                         button_effect: ButtonEffect::PickUp,
                         pickup_object: EntityType::ChickenFood,
-                        level: "".to_owned(),
+                        level: None,
                         hovering: false, 
                         hover_time: 0.0,
                         ..default()
@@ -933,7 +942,7 @@ pub fn game_ui_setup(mut commands: Commands,
                     MenuButton{
                         button_effect: ButtonEffect::PickUp,
                         pickup_object: EntityType::HorseFood,
-                        level: "".to_owned(),
+                        level: None,
                         hovering: false, 
                         hover_time: 0.0,
                         ..default()
@@ -979,7 +988,7 @@ pub fn game_ui_setup(mut commands: Commands,
                     MenuButton{
                         button_effect: ButtonEffect::PickUp,
                         pickup_object: EntityType::PigFood,
-                        level: "".to_owned(),
+                        level: None,
                         hovering: false, 
                         hover_time: 0.0,
                         ..default()
@@ -1025,7 +1034,7 @@ pub fn game_ui_setup(mut commands: Commands,
                     MenuButton{
                         button_effect: ButtonEffect::PickUp,
                         pickup_object: EntityType::AllFood,
-                        level: "".to_owned(),
+                        level: None,
                         hovering: false, 
                         hover_time: 0.0,
                         ..default()
@@ -1071,7 +1080,7 @@ pub fn game_ui_setup(mut commands: Commands,
                     MenuButton{
                         button_effect: ButtonEffect::PickUp,
                         pickup_object: EntityType::None,
-                        level: "".to_owned(),
+                        level: None,
                         hovering: false, 
                         hover_time: 0.0,
                         ..default()
@@ -1096,7 +1105,7 @@ pub fn game_ui_setup(mut commands: Commands,
                     MenuButton{
                         button_effect: ButtonEffect::PickUp,
                         pickup_object: EntityType::None,
-                        level: "".to_owned(),
+                        level: None,
                         hovering: false, 
                         hover_time: 0.0,
                         ..default()
@@ -1121,7 +1130,7 @@ pub fn game_ui_setup(mut commands: Commands,
                     MenuButton{
                         button_effect: ButtonEffect::PickUp,
                         pickup_object: EntityType::None,
-                        level: "".to_owned(),
+                        level: None,
                         hovering: false, 
                         hover_time: 0.0,
                         ..default()
@@ -1146,7 +1155,7 @@ pub fn game_ui_setup(mut commands: Commands,
                     MenuButton{
                         button_effect: ButtonEffect::PickUp,
                         pickup_object: EntityType::None,
-                        level: "".to_owned(),
+                        level: None,
                         hovering: false, 
                         hover_time: 0.0,
                         ..default()
@@ -1171,7 +1180,7 @@ pub fn game_ui_setup(mut commands: Commands,
                     MenuButton{
                         button_effect: ButtonEffect::PickUp,
                         pickup_object: EntityType::None,
-                        level: "".to_owned(),
+                        level: None,
                         hovering: false, 
                         hover_time: 0.0,
                         ..default()
@@ -1214,7 +1223,7 @@ pub fn game_ui_setup(mut commands: Commands,
                     MenuButton{
                         button_effect: ButtonEffect::None,
                         pickup_object: EntityType::None,
-                        level: "".to_owned(),
+                        level: None,
                         hovering: false, 
                         hover_time: 0.0,
                         ..default()
@@ -1224,7 +1233,7 @@ pub fn game_ui_setup(mut commands: Commands,
                             small_text_style.to_owned()
                         );
                         text.text.alignment = TextAlignment::Center;
-                        parent.spawn((text, Description));
+                        parent.spawn((text, Description{part:1}));
                     });
                 }).with_children(|parent| {
                     parent.spawn((ButtonBundle {
@@ -1242,17 +1251,23 @@ pub fn game_ui_setup(mut commands: Commands,
                     MenuButton{
                         button_effect: ButtonEffect::None,
                         pickup_object: EntityType::None,
-                        level: "".to_owned(),
+                        level: None,
                         hovering: false, 
                         hover_time: 0.0,
                         ..default()
                     })).with_children(|parent| {
-                        let mut text = TextBundle::from_section(
-                            "B",
-                            small_text_style.to_owned()
-                        );
-                        text.text.alignment = TextAlignment::Center;
-                        parent.spawn((text, Description));
+                        parent.spawn((AtlasImageBundle {
+                            texture_atlas: sprites.sprites["Food"].to_owned(),
+                            texture_atlas_image: UiTextureAtlasImage{index:0,..default()},
+                            style: Style {
+                                width: Val::Percent(100.0),
+                                height: Val::Percent(100.0),
+                                position_type: PositionType::Absolute,
+                                ..Default::default()
+                            },
+                            background_color: Color::WHITE.into(),
+                            ..Default::default()
+                        }, Description{part:2}));
                     });
                 }).with_children(|parent| {
                     parent.spawn((ButtonBundle {
@@ -1271,7 +1286,7 @@ pub fn game_ui_setup(mut commands: Commands,
                     MenuButton{
                         button_effect: ButtonEffect::None,
                         pickup_object: EntityType::None,
-                        level: "".to_owned(),
+                        level: None,
                         hovering: false, 
                         hover_time: 0.0,
                         ..default()
@@ -1281,7 +1296,7 @@ pub fn game_ui_setup(mut commands: Commands,
                             small_text_style.to_owned()
                         );
                         text.text.alignment = TextAlignment::Center;
-                        parent.spawn((text, Description));
+                        parent.spawn((text, Description{part:0}));
                     });
                 });
                 parent.spawn(ButtonBundle {
@@ -1330,7 +1345,7 @@ pub fn game_ui_setup(mut commands: Commands,
                         MenuButton{
                             button_effect: ButtonEffect::Pause,
                             pickup_object: EntityType::None,
-                            level: "".to_owned(),
+                            level: None,
                             hovering: false, 
                             hover_time: 0.0,
                             ..default()
@@ -1357,7 +1372,7 @@ pub fn game_ui_setup(mut commands: Commands,
                         MenuButton{
                             button_effect: ButtonEffect::Undo,
                             pickup_object: EntityType::None,
-                            level: "".to_owned(),
+                            level: None,
                             hovering: false, 
                             hover_time: 0.0,
                             ..default()
@@ -1396,7 +1411,7 @@ pub fn game_ui_setup(mut commands: Commands,
                         MenuButton{
                             button_effect: ButtonEffect::Start,
                             pickup_object: EntityType::None,
-                            level: "".to_owned(),
+                            level: None,
                             hovering: false, 
                             hover_time: 0.0,
                             ..default()
@@ -1457,8 +1472,11 @@ pub fn button_system(
                     ButtonEffect::Play => {
                         next_state.set(GameState::Gameplay);
                         saving.saving = SaveStage::Loading;
-                        saving.save = menu_button.level.to_owned();
-                        saving.editor_mode = menu_button.editor_mode;
+                        if let Some(level) = &menu_button.level {
+                            saving.save = level.id.to_owned();
+                            saving.editor_mode = Some(level.editor);
+                            saving.weather = Some(level.weather);
+                        }
                     }
                     ButtonEffect::Quit => {app_exit_events.send(bevy::app::AppExit);}
                     ButtonEffect::Start => {
@@ -1582,7 +1600,18 @@ pub fn game_cleanup(
     menu_data: Res<MenuData>,
     mut simulating: ResMut<SimulateRes>,
     mut q_cursor: Query<&mut Cursor>, 
+    rain_q: Query<Entity, With<Raindrop>>,
+    mut sprite_q: Query<&mut Sprite>,
+    mut weather: ResMut<Weather>,
 ) {
+    if let Some(overlay_id) = weather.overlay {
+        if let Ok(mut overlay) = sprite_q.get_mut(overlay_id) {
+            overlay.color = Color::rgba(0.05, 0.05, 0.25, 0.0);
+        }
+    }
+    for raindrop in &rain_q {
+        commands.entity(raindrop).despawn();
+    }
     simulating.win = false;
     simulating.loss = false;
     simulating.simulating = false;

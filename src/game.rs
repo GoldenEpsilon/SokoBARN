@@ -29,6 +29,7 @@ pub struct SaveFile {
 pub struct SimulateRes {
     pub simulating: bool,
     pub simulation_step: EntityType,
+    pub indicator: Option<Entity>,
     pub win: bool,
     pub loss: bool,
     pub rounds: usize
@@ -113,7 +114,7 @@ pub struct Flag {
 pub struct PlayModeTick(Timer);
 
 #[derive(Component, Deref, DerefMut)]
-pub struct AnimationTimer(Timer);
+pub struct AnimationTimer(pub Timer);
 
 #[derive(Component, Deref, DerefMut)]
 pub struct Effect(Timer);
@@ -1234,6 +1235,9 @@ impl Field {
 
         if (startx as isize) < -xoffset || (starty as isize) < -yoffset || !self.can_get_tile(((startx as isize) + xoffset) as usize, ((starty as isize) + yoffset) as usize) {
             //SLID OUT OF BOUNDS
+            if entity.entity_type == EntityType::Chicken && entity.state == EntityState::Special {
+                return false;
+            }
             if let Some(entity_id) = self.tiles[startx][starty].3 {
                 if let Ok(mut sliding_entity) = entity_q.get_mut(entity_id) {
                     sliding_entity.state = EntityState::Idle;
@@ -1438,7 +1442,7 @@ impl Field {
                                                         }
                                                         TileType::Mud | TileType::MuddyRocks => {
                                                             if target_entity.entity_type == EntityType::Pig {
-                                                                target_entity.state = EntityState::Walking;
+                                                                target_entity.state = EntityState::Idle;
                                                             }else{
                                                                 target_entity.state = EntityState::Sliding;
                                                             }
@@ -1476,10 +1480,8 @@ impl Field {
                                                         _ => {}
                                                     }
                                                 }
-                                                if !(startx == x && starty == y) {
-                                                    self.tiles[tile_slam_target_x][tile_slam_target_y].3 = self.tiles[startx][starty].3.to_owned();
-                                                    self.tiles[startx][starty].3 = None;
-                                                }
+                                                self.tiles[tile_slam_target_x][tile_slam_target_y].3 = self.tiles[x][y].3.to_owned();
+                                                self.tiles[x][y].3 = None;
                                             }
                                         }
                                     }
@@ -1777,7 +1779,7 @@ impl Field {
                                                 }
                                                 TileType::Mud | TileType::MuddyRocks => {
                                                     if slam_entity.entity_type == EntityType::Pig {
-                                                        slam_entity.state = EntityState::Walking;
+                                                        slam_entity.state = EntityState::Idle;
                                                     }else{
                                                         slam_entity.state = EntityState::Sliding;
                                                     }
@@ -1815,10 +1817,8 @@ impl Field {
                                                 _ => {}
                                             }
                                         }
-                                        if !(startx == x && starty == y) {
-                                            self.tiles[tile_slam_target_x][tile_slam_target_y].3 = self.tiles[frontx][fronty].3.to_owned();
-                                            self.tiles[frontx][fronty].3 = None;
-                                        }
+                                        self.tiles[tile_slam_target_x][tile_slam_target_y].3 = self.tiles[frontx][fronty].3.to_owned();
+                                        self.tiles[frontx][fronty].3 = None;
                                     }
                                 }
                             }
@@ -1953,7 +1953,7 @@ pub fn mouse_controls(
     q_entity: Query<&GameEntity>,
     mut q_cursor: Query<&mut Cursor>, 
     mut q_transform: Query<&mut Transform>,
-    mut q_desc: Query<&mut Text, With<Description>>,
+    mut q_desc: Query<(&mut Text, &Description)>,
     simulation: Res<SimulateRes>,
     buttons: Res<Input<MouseButton>>,
     ui_scale: Res<UiScale>,){
@@ -2006,73 +2006,78 @@ pub fn mouse_controls(
                 }
             }
             if field.can_get_tile(tile_pos_x, tile_pos_y) && !illegal_y_pos {
-                if let Ok(mut desc) = q_desc.get_single_mut() {
-                    if let Some(entity) = field.get_entity_type(tile_pos_x, tile_pos_y, &q_entity){
-                        desc.sections[0].value = 
-                        match entity {
-                            EntityType::Chicken => {"Chicken: Can fly over obstacles!"}
-                            EntityType::Pig => {"Pig: Doesn't slip in Mud."}
-                            EntityType::Horse => {"Horse: Can Pull carts by walking away from them!"}
-                            EntityType::Goat => {"Goat: Can SLAM animals and carts over all sorts of things!"}
-                            EntityType::Wagon => {"Cart: Help the cart get to its goal!"}
-                            EntityType::ChickenFood => {"Seeds: Chickens prefer to eat these, and Goats will eat it."}
-                            EntityType::PigFood => {"Apples: Horses prefer to eat these, and Goats will eat it"}
-                            EntityType::HorseFood => {"Carrots: Pigs prefer to eat these, and Goats will eat it"}
-                            EntityType::AllFood => {"Mixed Food: Goats prefer to eat this, but any Animal will eat it."}
-                            EntityType::WagonFood => {"Cart Chow: Carts will... eat it?????"}
-                            _ => {""}
-                        }.to_owned();
-                    }else{
-                        desc.sections[0].value = 
-                        match field.get_tile_type(tile_pos_x, tile_pos_y, &q_tile) {
-                            Some(TileType::Fence) => {"Fence: Impassible. Keeps everything in, no matter what!"}
-                            Some(TileType::Mud) => {"Mud: Slippery. Things can't stop here!"}
-                            Some(TileType::Rocks) => {"Rocks: Dangerous. Carts break on the rocks!"}
-                            Some(TileType::MuddyRocks) => {"Muddy Rocks: Slippery AND Dangerous! Uh oh!"}
-                            Some(TileType::Ditch) => {"Ditches: Dangerous. It's too deep for Animals and Carts!"}
-                            Some(TileType::ChickenPen) => {"Pen (Chicken): Goal. A comfortable coop for the Chicken!"}
-                            Some(TileType::HorsePen) => {"Pen (Horse): Goal. A nice stable for the Horse."}
-                            Some(TileType::PigPen) => {"Pen (Pig): Goal. The Pig loves the Mud here."}
-                            Some(TileType::GoatPen) => {"Pen (Goat): Goal. The Fences are extra sturdy for the Goat."}
-                            Some(TileType::Corral) => {"Pen (Cart): Goal. A place for Cart maintenance and upkeep."}
-                            _ => {""}
-                        }.to_owned();
+                for (mut desc, part) in &mut q_desc {
+                    match part.part {
+                        0 => {
+                            if let Some(entity) = field.get_entity_type(tile_pos_x, tile_pos_y, &q_entity){
+                                desc.sections[0].value = 
+                                match entity {
+                                    EntityType::Chicken => {"Chicken: Can fly over obstacles!"}
+                                    EntityType::Pig => {"Pig: Doesn't slip in Mud."}
+                                    EntityType::Horse => {"Horse: Can Pull carts by walking away from them!"}
+                                    EntityType::Goat => {"Goat: Can SLAM animals and carts over all sorts of things!"}
+                                    EntityType::Wagon => {"Cart: Help the cart get to its goal!"}
+                                    EntityType::ChickenFood => {"Seeds: Chickens prefer to eat these, and Goats will eat it."}
+                                    EntityType::PigFood => {"Apples: Horses prefer to eat these, and Goats will eat it"}
+                                    EntityType::HorseFood => {"Carrots: Pigs prefer to eat these, and Goats will eat it"}
+                                    EntityType::AllFood => {"Mixed Food: Goats prefer to eat this, but any Animal will eat it."}
+                                    EntityType::WagonFood => {"Cart Chow: Carts will... eat it?????"}
+                                    _ => {""}
+                                }.to_owned();
+                            }else{
+                                desc.sections[0].value = 
+                                match field.get_tile_type(tile_pos_x, tile_pos_y, &q_tile) {
+                                    Some(TileType::Fence) => {"Fence: Impassible. Keeps everything in, no matter what!"}
+                                    Some(TileType::Mud) => {"Mud: Slippery. Things can't stop here!"}
+                                    Some(TileType::Rocks) => {"Rocks: Dangerous. Carts break on the rocks!"}
+                                    Some(TileType::MuddyRocks) => {"Muddy Rocks: Slippery AND Dangerous! Uh oh!"}
+                                    Some(TileType::Ditch) => {"Ditches: Dangerous. It's too deep for Animals and Carts!"}
+                                    Some(TileType::ChickenPen) => {"Pen (Chicken): Goal. A comfortable coop for the Chicken!"}
+                                    Some(TileType::HorsePen) => {"Pen (Horse): Goal. A nice stable for the Horse."}
+                                    Some(TileType::PigPen) => {"Pen (Pig): Goal. The Pig loves the Mud here."}
+                                    Some(TileType::GoatPen) => {"Pen (Goat): Goal. The Fences are extra sturdy for the Goat."}
+                                    Some(TileType::Corral) => {"Pen (Cart): Goal. A place for Cart maintenance and upkeep."}
+                                    _ => {""}
+                                }.to_owned();
+                            }
+                            if field.editor_mode {
+                                if buttons.just_pressed(MouseButton::Left) && !cursor_holding {
+                                    match field.get_tile_type(tile_pos_x, tile_pos_y, &q_tile) {
+                                        Some(TileType::Grass) => {field.set_tile(&mut commands, &sprites, TileType::Fence, tile_pos_x, tile_pos_y);}
+                                        Some(TileType::Fence) => {field.set_tile(&mut commands, &sprites, TileType::Mud, tile_pos_x, tile_pos_y);}
+                                        Some(TileType::Mud) => {field.set_tile(&mut commands, &sprites, TileType::Rocks, tile_pos_x, tile_pos_y);}
+                                        Some(TileType::Rocks) => {field.set_tile(&mut commands, &sprites, TileType::MuddyRocks, tile_pos_x, tile_pos_y);}
+                                        Some(TileType::MuddyRocks) => {field.set_tile(&mut commands, &sprites, TileType::Corral, tile_pos_x, tile_pos_y);}
+                                        Some(TileType::Corral) => {field.set_tile(&mut commands, &sprites, TileType::ChickenPen, tile_pos_x, tile_pos_y);}
+                                        Some(TileType::ChickenPen) => {field.set_tile(&mut commands, &sprites, TileType::HorsePen, tile_pos_x, tile_pos_y);}
+                                        Some(TileType::HorsePen) => {field.set_tile(&mut commands, &sprites, TileType::PigPen, tile_pos_x, tile_pos_y);}
+                                        Some(TileType::PigPen) => {field.set_tile(&mut commands, &sprites, TileType::GoatPen, tile_pos_x, tile_pos_y);}
+                                        Some(TileType::GoatPen) => {field.set_tile(&mut commands, &sprites, TileType::Ditch, tile_pos_x, tile_pos_y);}
+                                        Some(TileType::Ditch) => {field.set_tile(&mut commands, &sprites, TileType::Grass, tile_pos_x, tile_pos_y);}
+                                        _ => {}
+                                    }
+                                }
+                                if buttons.just_pressed(MouseButton::Right) {
+                                    match field.get_entity_type(tile_pos_x, tile_pos_y, &q_entity) {
+                                        Some(EntityType::Chicken) => {field.set_entity(&mut commands, &sprites, EntityType::Horse, tile_pos_x, tile_pos_y);}
+                                        Some(EntityType::Horse) => {field.set_entity(&mut commands, &sprites, EntityType::Pig, tile_pos_x, tile_pos_y);}
+                                        Some(EntityType::Pig) => {field.set_entity(&mut commands, &sprites, EntityType::Goat, tile_pos_x, tile_pos_y);}
+                                        Some(EntityType::Goat) => {field.set_entity(&mut commands, &sprites, EntityType::Wagon, tile_pos_x, tile_pos_y);}
+                                        Some(EntityType::Wagon) => {field.set_entity(&mut commands, &sprites, EntityType::ChickenFood, tile_pos_x, tile_pos_y);}
+                                        Some(EntityType::ChickenFood) => {field.set_entity(&mut commands, &sprites, EntityType::HorseFood, tile_pos_x, tile_pos_y);}
+                                        Some(EntityType::HorseFood) => {field.set_entity(&mut commands, &sprites, EntityType::PigFood, tile_pos_x, tile_pos_y);}
+                                        Some(EntityType::PigFood) => {field.set_entity(&mut commands, &sprites, EntityType::AllFood, tile_pos_x, tile_pos_y);}
+                                        Some(EntityType::AllFood) => {field.set_entity(&mut commands, &sprites, EntityType::None, tile_pos_x, tile_pos_y);}
+                                        Some(EntityType::WagonFood) => {field.set_entity(&mut commands, &sprites, EntityType::None, tile_pos_x, tile_pos_y);}
+                                        _ => {field.set_entity(&mut commands, &sprites, EntityType::Chicken, tile_pos_x, tile_pos_y);}
+                                    }
+                                }
+                            }
+                        }
+                        _ => {}
                     }
                 }
-                if field.editor_mode {
-                    if buttons.just_pressed(MouseButton::Left) && !cursor_holding {
-                        match field.get_tile_type(tile_pos_x, tile_pos_y, &q_tile) {
-                            Some(TileType::Grass) => {field.set_tile(&mut commands, &sprites, TileType::Fence, tile_pos_x, tile_pos_y);}
-                            Some(TileType::Fence) => {field.set_tile(&mut commands, &sprites, TileType::Mud, tile_pos_x, tile_pos_y);}
-                            Some(TileType::Mud) => {field.set_tile(&mut commands, &sprites, TileType::Rocks, tile_pos_x, tile_pos_y);}
-                            Some(TileType::Rocks) => {field.set_tile(&mut commands, &sprites, TileType::MuddyRocks, tile_pos_x, tile_pos_y);}
-                            Some(TileType::MuddyRocks) => {field.set_tile(&mut commands, &sprites, TileType::Corral, tile_pos_x, tile_pos_y);}
-                            Some(TileType::Corral) => {field.set_tile(&mut commands, &sprites, TileType::ChickenPen, tile_pos_x, tile_pos_y);}
-                            Some(TileType::ChickenPen) => {field.set_tile(&mut commands, &sprites, TileType::HorsePen, tile_pos_x, tile_pos_y);}
-                            Some(TileType::HorsePen) => {field.set_tile(&mut commands, &sprites, TileType::PigPen, tile_pos_x, tile_pos_y);}
-                            Some(TileType::PigPen) => {field.set_tile(&mut commands, &sprites, TileType::GoatPen, tile_pos_x, tile_pos_y);}
-                            Some(TileType::GoatPen) => {field.set_tile(&mut commands, &sprites, TileType::Ditch, tile_pos_x, tile_pos_y);}
-                            Some(TileType::Ditch) => {field.set_tile(&mut commands, &sprites, TileType::Grass, tile_pos_x, tile_pos_y);}
-                            _ => {}
-                        }
-                    }
-                    if buttons.just_pressed(MouseButton::Right) {
-                        match field.get_entity_type(tile_pos_x, tile_pos_y, &q_entity) {
-                            Some(EntityType::Chicken) => {field.set_entity(&mut commands, &sprites, EntityType::Horse, tile_pos_x, tile_pos_y);}
-                            Some(EntityType::Horse) => {field.set_entity(&mut commands, &sprites, EntityType::Pig, tile_pos_x, tile_pos_y);}
-                            Some(EntityType::Pig) => {field.set_entity(&mut commands, &sprites, EntityType::Goat, tile_pos_x, tile_pos_y);}
-                            Some(EntityType::Goat) => {field.set_entity(&mut commands, &sprites, EntityType::Wagon, tile_pos_x, tile_pos_y);}
-                            Some(EntityType::Wagon) => {field.set_entity(&mut commands, &sprites, EntityType::ChickenFood, tile_pos_x, tile_pos_y);}
-                            Some(EntityType::ChickenFood) => {field.set_entity(&mut commands, &sprites, EntityType::HorseFood, tile_pos_x, tile_pos_y);}
-                            Some(EntityType::HorseFood) => {field.set_entity(&mut commands, &sprites, EntityType::PigFood, tile_pos_x, tile_pos_y);}
-                            Some(EntityType::PigFood) => {field.set_entity(&mut commands, &sprites, EntityType::AllFood, tile_pos_x, tile_pos_y);}
-                            Some(EntityType::AllFood) => {field.set_entity(&mut commands, &sprites, EntityType::None, tile_pos_x, tile_pos_y);}
-                            Some(EntityType::WagonFood) => {field.set_entity(&mut commands, &sprites, EntityType::None, tile_pos_x, tile_pos_y);}
-                            _ => {field.set_entity(&mut commands, &sprites, EntityType::Chicken, tile_pos_x, tile_pos_y);}
-                        }
-                    }
-                }
-                
+                    
                 if let Ok(mut cursor) = q_transform.get_mut(field.cursor) {
                     cursor.scale = Vec3::splat(ui_scale.scale as f32);
                     cursor.translation = Vec3{ x: (tile.x.floor() + 0.5) * TILE_SIZE * cursor.scale.x, y: tile.y.round() * TILE_SIZE * cursor.scale.y, z: 100.0 };
@@ -2093,7 +2098,8 @@ pub fn saving_system(
     q_flag: Query<&Flag>,
     mut simulation: ResMut<SimulateRes>,
     mut saving: ResMut<SaveRes>,
-    mut round_counter_q: Query<&mut Text, With<RoundCounter>>,){
+    mut round_counter_q: Query<&mut Text, With<RoundCounter>>,
+    mut weather: ResMut<Weather>,){
     if !simulation.simulating {
         match saving.saving {
             SaveStage::Saving => {
@@ -2150,6 +2156,9 @@ pub fn saving_system(
             }
             SaveStage::Loading => {
                 println!("LOADING {}", saving.save.to_owned());
+                if let Some(loaded_weather) = saving.weather {
+                    weather.weather = loaded_weather;
+                }
                 if let Ok(save_string) = fs::read_to_string(saving.save.to_owned()) {
                     if let Ok(save) = serde_json::from_str::<SaveFile>(&save_string) {
                         simulation.rounds = 0;
