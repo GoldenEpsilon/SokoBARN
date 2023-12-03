@@ -244,6 +244,7 @@ pub fn level_select_setup(
     asset_server: Res<AssetServer>, 
     ui_images: Res<UIImages>, 
     mut menu_data: ResMut<MenuData>,
+    sprites: Res<Sprites>,
     world_data: Res<WorldList>) {
     let text_style = TextStyle {
         font: asset_server.load("Fonts/MessyThicc.ttf"),
@@ -350,10 +351,15 @@ pub fn level_select_setup(
                 ..Default::default()
             })
             .with_children(|parent| {
-                parent.spawn(TextBundle::from_section(
-                    "V",
-                    text_style.to_owned()
-                ));
+                parent.spawn(AtlasImageBundle {
+                    texture_atlas: sprites.sprites["Arrow"].to_owned(),
+                    texture_atlas_image: UiTextureAtlasImage{index:2,..default()},
+                    style: Style {
+                        position_type: PositionType::Absolute,
+                        ..default()
+                    },
+                    ..default()
+                });
             });
         });
     });
@@ -446,10 +452,15 @@ pub fn level_select_setup(
                 ..Default::default()
             })
             .with_children(|parent| {
-                parent.spawn(TextBundle::from_section(
-                    "V",
-                    text_style.to_owned()
-                ));
+                parent.spawn(AtlasImageBundle {
+                    texture_atlas: sprites.sprites["Arrow"].to_owned(),
+                    texture_atlas_image: UiTextureAtlasImage{index:0,..default()},
+                    style: Style {
+                        position_type: PositionType::Absolute,
+                        ..default()
+                    },
+                    ..default()
+                });
             });
         });
     });
@@ -857,7 +868,7 @@ pub fn game_ui_setup(mut commands: Commands,
                         ..default()
                     }).with_children(|parent| {
                         parent.spawn((TextBundle::from_section(
-                            "Round 1",
+                            "Round 0",
                             small_text_style.to_owned()
                         ), RoundCounter));
                     });
@@ -1397,11 +1408,11 @@ pub fn button_system(
                     ButtonEffect::Start => {
                         if simulating.simulating == false && !simulating.loss && !simulating.win {
                             simulating.simulating = true;
+                            simulating.rounds = simulating.rounds + 1;
+                            simulating.loss = false;
+                            simulating.win = false;
                             if let Ok(mut round_counter) = round_counter_q.get_single_mut() {
                                 round_counter.sections[0].value = format!("Round {}", simulating.rounds);
-                                simulating.rounds = simulating.rounds + 1;
-                                simulating.loss = false;
-                                simulating.win = false;
                             }
                         }
                     }

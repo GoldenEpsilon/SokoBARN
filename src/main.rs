@@ -148,7 +148,7 @@ fn setup(
     ) {
 
     commands.insert_resource(SaveRes { saving: SaveStage::Idle, save: "level.skb".to_owned(), quicksaves: vec![], editor_mode: None });
-    commands.insert_resource(SimulateRes { simulating: false, rounds: 1, ..default() });
+    commands.insert_resource(SimulateRes { simulating: false, rounds: 0, ..default() });
     commands.insert_resource(MenuData { button_entities: vec![] });
     commands.insert_resource(PauseMenuData { button_entities: vec![], mode: PauseMenuMode::Pause });
     commands.insert_resource(Weather { raindrop_count: 800 /*400*/, ..default() });
@@ -287,6 +287,8 @@ fn setup(
     sprites.insert("Rain".to_owned(), texture_atlases.add(TextureAtlas::from_grid(asset_server.load("Sprites/Misc/sokobarn-Rain.png"), Vec2::new(5.0, 5.0), 4, 1, None, None)));
     sprites.insert("MuddySplash".to_owned(), texture_atlases.add(TextureAtlas::from_grid(asset_server.load("Sprites/Misc/sokobarn-MuddySplash.png"), Vec2::new(28.0, 28.0), 4, 1, None, None)));
     sprites.insert("Disabled".to_owned(), texture_atlases.add(TextureAtlas::from_grid(asset_server.load("Sprites/Misc/sokobarn-Disabled.png"), Vec2::new(32.0, 32.0), 1, 1, None, None)));
+    sprites.insert("Arrow".to_owned(), texture_atlases.add(TextureAtlas::from_grid(asset_server.load("Sprites/Misc/sokobarn-Arrow.png"), Vec2::new(32.0, 32.0), 4, 1, None, None)));
+    sprites.insert("Flags".to_owned(), texture_atlases.add(TextureAtlas::from_grid(asset_server.load("Sprites/Misc/sokobarn-Flags.png"), Vec2::new(32.0, 32.0), 4, 24, None, None)));
 
     commands.insert_resource(Sprites { sprites: sprites });
 
@@ -331,6 +333,18 @@ fn setup(
         ..default()
     }, Cursor{holding: EntityType::None, drag_drop: true, starting_pos: Vec2::splat(-100.0), pos: Vec2::splat(-100.0)})
     ).with_children(|parent| {
+        parent.spawn((AtlasImageBundle {
+            texture_atlas: texture_atlases.add(TextureAtlas::from_grid(asset_server.load("Sprites/Misc/sokobarn-Flags.png"), Vec2::new(32.0, 32.0), 4, 24, None, None)),
+            texture_atlas_image: UiTextureAtlasImage{index:0,..default()},
+            style: Style {
+                position_type: PositionType::Absolute,
+                top: Val::Px(24.0),
+                left: Val::Px(16.0),
+                ..default()
+            },
+            visibility: Visibility::Hidden,
+            ..default()
+        }, CursorObj{index:2}));
         parent.spawn((AtlasImageBundle {
             texture_atlas: texture_atlases.add(TextureAtlas::from_grid(asset_server.load("Sprites/Misc/sokobarn-Food.png"), Vec2::new(28.0, 28.0), 5, 1, None, None)),
             texture_atlas_image: UiTextureAtlasImage{index:0,..default()},
@@ -438,7 +452,6 @@ fn resize_system(mut object_set: ParamSet<(
     }
 }
 
-//TODO: make cursor a ui object
 pub fn cursor(
     q_windows: Query<&Window, With<PrimaryWindow>>, 
     mut q_cursor: Query<(&mut Cursor, &mut Style, &Children)>, 

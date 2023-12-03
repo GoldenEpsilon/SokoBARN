@@ -19,8 +19,8 @@ pub struct SaveFile {
     version: usize,
     width: usize,
     height: usize,
-    //Tile, Buttons, Food, Animals
-    tiles: Vec<(Option<Tile>, Option<GameEntity>, Option<GameEntity>, Option<GameEntity>)>,
+    //Tile, Buttons, Food, Animals, Flags
+    tiles: Vec<(Option<Tile>, Option<GameEntity>, Option<GameEntity>, Option<GameEntity>, Option<Flag>)>,
 }
 
 #[derive(Resource)]
@@ -63,6 +63,13 @@ struct TileBundle {
     sprite: SpriteSheetBundle,
 }
 
+#[derive(Bundle)]
+struct FlagBundle {
+    flag: Flag,
+    pub animation_timer: AnimationTimer,
+    sprite: SpriteSheetBundle,
+}
+
 #[derive(Component)]
 #[derive(Serialize, Deserialize, Debug)]
 #[derive(Clone, Copy)]
@@ -92,6 +99,14 @@ pub struct Wagon;
 pub struct Tile {
     pub tile_type: TileType,
     pub location: Location,
+}
+
+#[derive(Component)]
+#[derive(Serialize, Deserialize, Debug)]
+#[derive(Clone, Copy)]
+pub struct Flag {
+    pub location: Location,
+    pub index: usize
 }
 
 #[derive(Component, Deref, DerefMut)]
@@ -134,6 +149,30 @@ pub enum EntityType {
     AllFood,
     WagonFood,
     #[default] None,
+    FlagChicken1,
+    FlagChicken2,
+    FlagChicken3,
+    FlagChicken4,
+    FlagHorse1,
+    FlagHorse2,
+    FlagHorse3,
+    FlagHorse4,
+    FlagPig1,
+    FlagPig2,
+    FlagPig3,
+    FlagPig4,
+    FlagGoat1,
+    FlagGoat2,
+    FlagGoat3,
+    FlagGoat4,
+    FlagWagon1,
+    FlagWagon2,
+    FlagWagon3,
+    FlagWagon4,
+    Flag1,
+    Flag2,
+    Flag3,
+    Flag4,
 }
 
 #[derive(PartialEq)]
@@ -191,8 +230,8 @@ pub struct Depth {
 
 #[derive(Resource)]
 pub struct Field {
-    //Tile, Buttons, Food, Animals
-    pub tiles: Vec<Vec<(Entity, Option<Entity>, Option<Entity>, Option<Entity>, Option<Entity>)>>,
+    //Tile, Buttons, Food, Animals, Flags
+    pub tiles: Vec<Vec<(Entity, Option<Entity>, Option<Entity>, Option<Entity>, Option<Entity>, Option<Entity>)>>,
     pub cursor: Entity,
     pub simulate_timer: PlayModeTick,
     pub editor_mode: bool
@@ -222,7 +261,7 @@ impl Field {
                             ..default()
                         }
                     }
-                ).id(), None, None, None, None));
+                ).id(), None, None, None, None, None));
                 y += 1;
             }
             x += 1;
@@ -241,7 +280,7 @@ impl Field {
     pub fn despawn_all(&self, commands: &mut Commands){
         commands.entity(self.cursor).despawn_recursive();
         for column in &self.tiles {
-            for (tile, layer0, layer1, layer2, layer3) in column {
+            for (tile, layer0, layer1, layer2, layer3, layer4) in column {
                 commands.entity(*tile).despawn_recursive();
                 if let Some(entity) = layer0 {
                     commands.entity(*entity).despawn_recursive();
@@ -253,6 +292,9 @@ impl Field {
                     commands.entity(*entity).despawn_recursive();
                 }
                 if let Some(entity) = layer3 {
+                    commands.entity(*entity).despawn_recursive();
+                }
+                if let Some(entity) = layer4 {
                     commands.entity(*entity).despawn_recursive();
                 }
             }
@@ -626,6 +668,14 @@ impl Field {
                 commands.entity(old_entity).despawn_recursive();
                 self.tiles[x][y].3 = None;
             }
+            if let Some(old_entity) = self.tiles[x][y].4 {
+                commands.entity(old_entity).despawn_recursive();
+                self.tiles[x][y].4 = None;
+            }
+            if let Some(old_entity) = self.tiles[x][y].5 {
+                commands.entity(old_entity).despawn_recursive();
+                self.tiles[x][y].5 = None;
+            }
             match entity_type {
                 EntityType::Chicken | EntityType::Horse | EntityType::Pig | EntityType::Goat => {
                     self.tiles[x][y].3 = Some(commands.spawn(
@@ -727,6 +777,33 @@ impl Field {
         }
     }
     
+    pub fn set_flag(&mut self, commands: &mut Commands, sprites: &Res<Sprites>, index: usize, x: usize, y: usize){
+        if self.can_get_tile(x, y) {
+            if let Some(old_entity) = self.tiles[x][y].5 {
+                commands.entity(old_entity).despawn_recursive();
+                self.tiles[x][y].5 = None;
+            }
+            self.tiles[x][y].5 = Some(commands.spawn(
+                FlagBundle {
+                    flag: Flag { 
+                        location: Location { 
+                            x: x,
+                            y: y,
+                            z: 32,
+                        },
+                        index: index,
+                    },
+                    animation_timer: AnimationTimer(Timer::from_seconds(ANIMATION_SPEED, TimerMode::Repeating)),
+                    sprite: SpriteSheetBundle {
+                        texture_atlas: sprites.sprites["Flag"].clone(),
+                        sprite: TextureAtlasSprite::new(index * 4),
+                        ..default()
+                    }
+                }
+            ).id());
+        }
+    }
+
     fn spawn_fence(&mut self, commands: &mut Commands, sprites: &Res<Sprites>, x: usize, y: usize){
         if self.can_get_tile(x, y) {
             self.tiles[x][y].0 = commands.spawn((
@@ -1136,7 +1213,7 @@ impl Field {
 
     pub fn slide_entity(&mut self,
         commands: &mut Commands, 
-        mut entity_q: &mut Query<&mut GameEntity>, 
+        entity_q: &mut Query<&mut GameEntity>, 
         tile_q: &Query<&Tile>,
         sounds: &Res<Sounds>,
         sprites: &Res<Sprites>,
@@ -1155,11 +1232,11 @@ impl Field {
             _ => {(0, 0)}
         };
 
-        if (startx as isize) < -xoffset || (starty as isize) < -yoffset {
+        if (startx as isize) < -xoffset || (starty as isize) < -yoffset || !self.can_get_tile(((startx as isize) + xoffset) as usize, ((starty as isize) + yoffset) as usize) {
             //SLID OUT OF BOUNDS
             if let Some(entity_id) = self.tiles[startx][starty].3 {
-                if let Ok(mut entity) = entity_q.get_mut(entity_id) {
-                    entity.state = EntityState::Idle;
+                if let Ok(mut sliding_entity) = entity_q.get_mut(entity_id) {
+                    sliding_entity.state = EntityState::Idle;
                 }
             }
             return true;
@@ -1477,6 +1554,9 @@ impl Field {
                                     }
                                 }
                                 TileType::MuddyRocks => {
+                                    if moving_entity.entity_type == EntityType::Wagon {
+                                        return false;
+                                    }
                                     //set state as muddy
                                     if moving_entity.entity_type == EntityType::Chicken && moving_entity.state == EntityState::Special {
                                     }else if moving_entity.entity_type == EntityType::Pig {
@@ -1489,6 +1569,7 @@ impl Field {
                                     if moving_entity.entity_type == EntityType::Wagon {
                                         return false;
                                     }
+                                    moving_entity.state = EntityState::Walking;
                                 }
                                 TileType::Ditch => {
                                     if moving_entity.entity_type == EntityType::Chicken && moving_entity.state != EntityState::Special {
@@ -1992,8 +2073,10 @@ pub fn saving_system(
     mut field: ResMut<Field>, 
     q_tile: Query<&Tile>,
     q_entity: Query<&GameEntity>,
+    q_flag: Query<&Flag>,
     mut simulation: ResMut<SimulateRes>,
-    mut saving: ResMut<SaveRes>,){
+    mut saving: ResMut<SaveRes>,
+    mut round_counter_q: Query<&mut Text, With<RoundCounter>>,){
     if !simulation.simulating {
         match saving.saving {
             SaveStage::Saving => {
@@ -2001,7 +2084,7 @@ pub fn saving_system(
                     println!("You FOOL! There is no level to save!");
                     return;
                 }
-                let mut save = SaveFile { version: 2, width: field.tiles.len(), height: field.tiles[0].len(), tiles: vec![] };
+                let mut save = SaveFile { version: 3, width: field.tiles.len(), height: field.tiles[0].len(), tiles: vec![] };
 
                 let mut y = 0;
                 while y < save.height {
@@ -2011,6 +2094,7 @@ pub fn saving_system(
                         let mut save_entity_1: Option<GameEntity> = None;
                         let mut save_entity_2: Option<GameEntity> = None;
                         let mut save_entity_3: Option<GameEntity> = None;
+                        let mut save_entity_4: Option<Flag> = None;
                         if let Ok(tile) = q_tile.get(field.tiles[x][y].0) {
                             save_tile = Some(tile.clone());
                         }
@@ -2029,7 +2113,12 @@ pub fn saving_system(
                                 save_entity_3 = Some(entity.clone());
                             }
                         }
-                        save.tiles.push((save_tile, save_entity_1, save_entity_2, save_entity_3));
+                        if let Some(entity_id) = field.tiles[x][y].4 {
+                            if let Ok(entity) = q_flag.get(entity_id) {
+                                save_entity_4 = Some(entity.clone());
+                            }
+                        }
+                        save.tiles.push((save_tile, save_entity_1, save_entity_2, save_entity_3, save_entity_4));
                         x += 1;
                     }
                     y += 1;
@@ -2046,7 +2135,7 @@ pub fn saving_system(
                 println!("LOADING {}", saving.save.to_owned());
                 if let Ok(save_string) = fs::read_to_string(saving.save.to_owned()) {
                     if let Ok(save) = serde_json::from_str::<SaveFile>(&save_string) {
-                        simulation.rounds = 1;
+                        simulation.rounds = 0;
                         for savetile in save.tiles {
                             if let Some(tile) = savetile.0 {
                                 field.set_tile(&mut commands, &sprites, tile.tile_type, tile.location.x, tile.location.y);
@@ -2065,14 +2154,14 @@ pub fn saving_system(
                     }else if let Err(error) = serde_json::from_str::<SaveFile>(&save_string){
                         println!("Level Loading Failed! Error: {:?}", error);
                     }
-                }else  {
+                }else {
                     if let Some(editor) = saving.editor_mode {
                         field.editor_mode = editor;
                     } else {
                         field.editor_mode = false;
                     }
                     if let Some(save) = savefiles.get(&levels.levels[&saving.save]) {
-                        simulation.rounds = 1;
+                        simulation.rounds = 0;
                         for savetile in &save.tiles {
                             if let Some(tile) = savetile.0 {
                                 field.set_tile(&mut commands, &sprites, tile.tile_type, tile.location.x, tile.location.y);
@@ -2087,6 +2176,9 @@ pub fn saving_system(
                             if let Some(entity) = savetile.3 {
                                 field.set_entity(&mut commands, &sprites, entity.entity_type, entity.location.x, entity.location.y);
                             }
+                            if let Some(flag) = savetile.4 {
+                                field.set_flag(&mut commands, &sprites, flag.index, flag.location.x, flag.location.y);
+                            }
                         }
                     }
                 }
@@ -2098,7 +2190,7 @@ pub fn saving_system(
                     println!("You FOOL! There is no level to save!");
                     return;
                 }
-                let mut save = SaveFile { version: 2, width: field.tiles.len(), height: field.tiles[0].len(), tiles: vec![] };
+                let mut save = SaveFile { version: 3, width: field.tiles.len(), height: field.tiles[0].len(), tiles: vec![] };
 
                 let mut y = 0;
                 while y < save.height {
@@ -2108,6 +2200,7 @@ pub fn saving_system(
                         let mut save_entity_1: Option<GameEntity> = None;
                         let mut save_entity_2: Option<GameEntity> = None;
                         let mut save_entity_3: Option<GameEntity> = None;
+                        let mut save_entity_4: Option<Flag> = None;
                         if let Ok(tile) = q_tile.get(field.tiles[x][y].0) {
                             save_tile = Some(tile.clone());
                         }
@@ -2126,7 +2219,12 @@ pub fn saving_system(
                                 save_entity_3 = Some(entity.clone());
                             }
                         }
-                        save.tiles.push((save_tile, save_entity_1, save_entity_2, save_entity_3));
+                        if let Some(entity_id) = field.tiles[x][y].4 {
+                            if let Ok(entity) = q_flag.get(entity_id) {
+                                save_entity_4 = Some(entity.clone());
+                            }
+                        }
+                        save.tiles.push((save_tile, save_entity_1, save_entity_2, save_entity_3, save_entity_4));
                         x += 1;
                     }
                     y += 1;
@@ -2161,6 +2259,9 @@ pub fn saving_system(
                                 if let Some(entity) = savetile.3 {
                                     field.set_entity(&mut commands, &sprites, entity.entity_type, entity.location.x, entity.location.y);
                                 }
+                                if let Some(flag) = savetile.4 {
+                                    field.set_flag(&mut commands, &sprites, flag.index, flag.location.x, flag.location.y);
+                                }
                             }
                         }else if let Err(error) = serde_json::from_str::<SaveFile>(&save_string){
                             println!("Level Loading Failed! Error: {:?}", error);
@@ -2174,6 +2275,9 @@ pub fn saving_system(
                 }
             }
             _ => {}
+        }
+        if let Ok(mut round_counter) = round_counter_q.get_single_mut() {
+            round_counter.sections[0].value = format!("Round {}", simulation.rounds);
         }
     }
 }
