@@ -802,7 +802,7 @@ pub fn game_ui_setup(mut commands: Commands,
     };
     let small_text_style = TextStyle {
         font: asset_server.load("Fonts/MessyThicc.ttf"),
-        font_size: 10.0,
+        font_size: 8.0,
         ..default()
     };
 
@@ -1202,8 +1202,64 @@ pub fn game_ui_setup(mut commands: Commands,
                     parent.spawn((ButtonBundle {
                         style: Style {
                             left: Val::Px(2.0),
+                            width: Val::Px(TILE_SIZE),
+                            height: Val::Px(TILE_SIZE),
+                            justify_content: JustifyContent::Center,
+                            align_items: AlignItems::Center,
+                            ..default()
+                        },
+                        background_color: Color::NONE.into(),
+                        ..default()
+                    }, 
+                    MenuButton{
+                        button_effect: ButtonEffect::None,
+                        pickup_object: EntityType::None,
+                        level: "".to_owned(),
+                        hovering: false, 
+                        hover_time: 0.0,
+                        ..default()
+                    })).with_children(|parent| {
+                        let mut text = TextBundle::from_section(
+                            "A:",
+                            small_text_style.to_owned()
+                        );
+                        text.text.alignment = TextAlignment::Center;
+                        parent.spawn((text, Description));
+                    });
+                }).with_children(|parent| {
+                    parent.spawn((ButtonBundle {
+                        style: Style {
+                            left: Val::Px(2.0),
+                            width: Val::Px(TILE_SIZE),
+                            height: Val::Px(TILE_SIZE),
+                            justify_content: JustifyContent::Center,
+                            align_items: AlignItems::Center,
+                            ..default()
+                        },
+                        background_color: Color::NONE.into(),
+                        ..default()
+                    }, 
+                    MenuButton{
+                        button_effect: ButtonEffect::None,
+                        pickup_object: EntityType::None,
+                        level: "".to_owned(),
+                        hovering: false, 
+                        hover_time: 0.0,
+                        ..default()
+                    })).with_children(|parent| {
+                        let mut text = TextBundle::from_section(
+                            "B",
+                            small_text_style.to_owned()
+                        );
+                        text.text.alignment = TextAlignment::Center;
+                        parent.spawn((text, Description));
+                    });
+                }).with_children(|parent| {
+                    parent.spawn((ButtonBundle {
+                        style: Style {
+                            left: Val::Px(2.0),
                             width: Val::Px(TILE_SIZE * 2.0),
-                            height: Val::Px(TILE_SIZE * 3.0),
+                            height: Val::Px(TILE_SIZE * 2.0),
                             grid_column: GridPlacement::span(2),
                             justify_content: JustifyContent::Center,
                             align_items: AlignItems::Center,
@@ -1213,7 +1269,7 @@ pub fn game_ui_setup(mut commands: Commands,
                         ..default()
                     }, 
                     MenuButton{
-                        button_effect: ButtonEffect::Save,
+                        button_effect: ButtonEffect::None,
                         pickup_object: EntityType::None,
                         level: "".to_owned(),
                         hovering: false, 

@@ -2007,20 +2007,37 @@ pub fn mouse_controls(
             }
             if field.can_get_tile(tile_pos_x, tile_pos_y) && !illegal_y_pos {
                 if let Ok(mut desc) = q_desc.get_single_mut() {
-                    desc.sections[0].value = 
-                    match field.get_tile_type(tile_pos_x, tile_pos_y, &q_tile) {
-                        Some(TileType::Fence) => {"Fence: Impassible. Keeps everything in, no matter what!"}
-                        Some(TileType::Mud) => {"Mud: Slippery. Things can't stop here!"}
-                        Some(TileType::Rocks) => {"Rocks: Dangerous. Carts break on the rocks!"}
-                        Some(TileType::MuddyRocks) => {"Muddy Rocks: Slippery AND Dangerous! Uh oh!"}
-                        Some(TileType::Ditch) => {"Ditches: Dangerous. It's too deep for most things!"}
-                        Some(TileType::ChickenPen) => {"A comfortable coop for the Chicken!"}
-                        Some(TileType::HorsePen) => {"A nice stable for the Horse."}
-                        Some(TileType::PigPen) => {"The Pig loves the Mud here."}
-                        Some(TileType::GoatPen) => {"The Fences are extra sturdy for the Goat."}
-                        Some(TileType::Corral) => {"A place for Cart maintenance and upkeep."}
-                        _ => {""}
-                    }.to_owned();
+                    if let Some(entity) = field.get_entity_type(tile_pos_x, tile_pos_y, &q_entity){
+                        desc.sections[0].value = 
+                        match entity {
+                            EntityType::Chicken => {"Chicken: Can fly over obstacles!"}
+                            EntityType::Pig => {"Pig: Doesn't slip in Mud."}
+                            EntityType::Horse => {"Horse: Can Pull carts by walking away from them!"}
+                            EntityType::Goat => {"Goat: Can SLAM animals and carts over all sorts of things!"}
+                            EntityType::Wagon => {"Cart: Help the cart get to its goal!"}
+                            EntityType::ChickenFood => {"Seeds: Chickens prefer to eat these, and Goats will eat it."}
+                            EntityType::PigFood => {"Apples: Horses prefer to eat these, and Goats will eat it"}
+                            EntityType::HorseFood => {"Carrots: Pigs prefer to eat these, and Goats will eat it"}
+                            EntityType::AllFood => {"Mixed Food: Goats prefer to eat this, but any Animal will eat it."}
+                            EntityType::WagonFood => {"Cart Chow: Carts will... eat it?????"}
+                            _ => {""}
+                        }.to_owned();
+                    }else{
+                        desc.sections[0].value = 
+                        match field.get_tile_type(tile_pos_x, tile_pos_y, &q_tile) {
+                            Some(TileType::Fence) => {"Fence: Impassible. Keeps everything in, no matter what!"}
+                            Some(TileType::Mud) => {"Mud: Slippery. Things can't stop here!"}
+                            Some(TileType::Rocks) => {"Rocks: Dangerous. Carts break on the rocks!"}
+                            Some(TileType::MuddyRocks) => {"Muddy Rocks: Slippery AND Dangerous! Uh oh!"}
+                            Some(TileType::Ditch) => {"Ditches: Dangerous. It's too deep for Animals and Carts!"}
+                            Some(TileType::ChickenPen) => {"Pen (Chicken): Goal. A comfortable coop for the Chicken!"}
+                            Some(TileType::HorsePen) => {"Pen (Horse): Goal. A nice stable for the Horse."}
+                            Some(TileType::PigPen) => {"Pen (Pig): Goal. The Pig loves the Mud here."}
+                            Some(TileType::GoatPen) => {"Pen (Goat): Goal. The Fences are extra sturdy for the Goat."}
+                            Some(TileType::Corral) => {"Pen (Cart): Goal. A place for Cart maintenance and upkeep."}
+                            _ => {""}
+                        }.to_owned();
+                    }
                 }
                 if field.editor_mode {
                     if buttons.just_pressed(MouseButton::Left) && !cursor_holding {
