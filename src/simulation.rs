@@ -13,7 +13,14 @@ pub fn simulate(
     mut simulating: ResMut<SimulateRes>,
     mut entity_q: Query<&mut GameEntity>,
     mut saving: ResMut<SaveRes>,
+    mut next_state: ResMut<NextState<GameState>>,
+    mut pause_menu_data: ResMut<PauseMenuData>,
     tile_q: Query<&Tile>,){
+    if simulating.loss {
+        pause_menu_data.mode = PauseMenuMode::Lose;
+        next_state.set(GameState::Pause);
+        return;
+    }
     if simulating.simulating {
         field.simulate_timer.tick(time.delta());
         if field.simulate_timer.just_finished() {
@@ -83,7 +90,7 @@ pub fn simulate(
                     let mut state = entity.state;
                     if entity.state == EntityState::Special {
                         state = match entity.entity_type {
-                            EntityType::Chicken => {EntityState::Walking}
+                            EntityType::Chicken => {EntityState::Sliding}
                             EntityType::Pig => {EntityState::Idle}
                             EntityType::Horse => {EntityState::Idle}
                             EntityType::Goat => {EntityState::Idle}
@@ -139,6 +146,8 @@ pub fn simulate(
                     for mut entity in &mut entity_q {
                         entity.state = EntityState::Celebrating;
                     }
+                    pause_menu_data.mode = PauseMenuMode::Win;
+                    next_state.set(GameState::Pause);
                 }
                 simulating.simulation_step = match simulating.simulation_step {
                     EntityType::Goat => {EntityType::Horse}

@@ -145,7 +145,7 @@ fn setup(
     commands.insert_resource(SaveRes { saving: SaveStage::Idle, save: "level.skb".to_owned(), quicksaves: vec![] });
     commands.insert_resource(SimulateRes { simulating: false, rounds: 1, ..default() });
     commands.insert_resource(MenuData { button_entities: vec![] });
-    commands.insert_resource(PauseMenuData { button_entities: vec![] });
+    commands.insert_resource(PauseMenuData { button_entities: vec![], mode: PauseMenuMode::Pause });
     commands.insert_resource(Weather { raindrop_count: 800 /*400*/, ..default() });
 
     let mut worlds = vec![];

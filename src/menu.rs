@@ -49,6 +49,7 @@ pub struct LevelData {
 #[derive(Resource)]
 pub struct PauseMenuData {
     pub button_entities: Vec<Entity>,
+    pub mode: PauseMenuMode
 }
 
 #[derive(Resource)]
@@ -56,6 +57,14 @@ pub struct SaveRes {
     pub saving: SaveStage,
     pub save: String,
     pub quicksaves: Vec<(String, usize)>
+}
+
+#[derive(PartialEq)]
+pub enum PauseMenuMode{
+    Pause,
+    Editor,
+    Win,
+    Lose
 }
 
 #[derive(PartialEq)]
@@ -81,6 +90,7 @@ pub enum ButtonEffect{
     Start,
     Save,
     Load,
+    Reload,
     Undo,
     Pause,
     UnPause,
@@ -414,459 +424,7 @@ pub fn level_select_setup(
         });
     });
 
-    menu_data.button_entities = vec![
-        menu.id(), /*
-        commands.spawn(NodeBundle {
-            style: Style {
-                width: Val::Percent(100.0),
-                height: Val::Percent(100.0),
-                align_items: AlignItems::Center,
-                justify_content: JustifyContent::Center,
-                justify_items: JustifyItems::Center,
-                display: Display::Grid,
-                grid_template_columns: vec![GridTrack::auto(), GridTrack::auto()],
-                grid_template_rows: vec![GridTrack::auto(), GridTrack::auto(), GridTrack::auto(), GridTrack::auto(), GridTrack::auto(), GridTrack::auto()],
-                ..default()
-            },
-            ..default()
-        }
-        )
-        .with_children(|parent| {
-            parent.spawn(ButtonBundle {
-                style: Style {
-                    width: Val::Px(160.0),
-                    height: Val::Px(32.0),
-                    //border: UiRect::all(Val::Px(5.0)),
-                    // horizontally center child text
-                    justify_content: JustifyContent::Center,
-                    // vertically center child text
-                    align_items: AlignItems::Center,
-                    margin: UiRect::bottom(Val::Px(10.0)),
-                    grid_column: GridPlacement::span(2),
-                    ..default()
-                },
-                background_color: Color::NONE.into(),
-                ..default()
-            })
-            .with_children(|parent| {
-                parent.spawn(ImageBundle {
-                    image: UiImage::new(image.clone()),
-                    style: Style {
-                        width: Val::Percent(100.0),
-                        height: Val::Percent(100.0),
-                        justify_content: JustifyContent::Center,
-                        align_items: AlignItems::Center,
-                        ..Default::default()
-                    },
-                    background_color: Color::WHITE.into(),
-                    ..Default::default()
-                })
-                .with_children(|parent| {
-                    parent.spawn(TextBundle::from_section(
-                        "Tutorials",
-                        text_style.to_owned()
-                    ));
-                });
-            });
-        })
-        .with_children(|parent| {
-            parent.spawn((ButtonBundle {
-                style: Style {
-                    width: Val::Px(160.0),
-                    height: Val::Px(32.0),
-                    //border: UiRect::all(Val::Px(5.0)),
-                    // horizontally center child text
-                    justify_content: JustifyContent::Center,
-                    // vertically center child text
-                    align_items: AlignItems::Center,
-                    margin: UiRect::bottom(Val::Px(10.0)),
-                    grid_column: GridPlacement::span(2),
-                    ..default()
-                },
-                background_color: Color::NONE.into(),
-                ..default()
-            }, 
-            MenuButton{
-                button_effect: ButtonEffect::PrevWorld,
-                pickup_object: EntityType::None,
-                level: "".to_owned(),
-                hovering: false, 
-                hover_time: 0.0
-            }))
-            .with_children(|parent| {
-                parent.spawn(ImageBundle {
-                    image: UiImage::new(image.clone()),
-                    style: Style {
-                        width: Val::Percent(100.0),
-                        height: Val::Percent(100.0),
-                        justify_content: JustifyContent::Center,
-                        align_items: AlignItems::Center,
-                        ..Default::default()
-                    },
-                    background_color: Color::WHITE.into(),
-                    ..Default::default()
-                })
-                .with_children(|parent| {
-                    parent.spawn(TextBundle::from_section(
-                        "V",
-                        text_style.to_owned()
-                    ));
-                });
-            });
-        })
-        .with_children(|parent| {
-            parent.spawn((ButtonBundle {
-                style: Style {
-                    width: Val::Px(160.0),
-                    height: Val::Px(32.0),
-                    //border: UiRect::all(Val::Px(5.0)),
-                    // horizontally center child text
-                    justify_content: JustifyContent::Center,
-                    // vertically center child text
-                    align_items: AlignItems::Center,
-                    margin: UiRect::bottom(Val::Px(10.0)),
-                    ..default()
-                },
-                background_color: Color::NONE.into(),
-                ..default()
-            }, 
-            MenuButton{
-                button_effect: ButtonEffect::Play,
-                pickup_object: EntityType::None,
-                level: "Levels/goat-tutorial-1.skb".to_owned(),
-                hovering: false, 
-                hover_time: 0.0
-            }))
-            .with_children(|parent| {
-                parent.spawn(ImageBundle {
-                    image: UiImage::new(image.clone()),
-                    style: Style {
-                        width: Val::Percent(100.0),
-                        height: Val::Percent(100.0),
-                        justify_content: JustifyContent::Center,
-                        align_items: AlignItems::Center,
-                        ..Default::default()
-                    },
-                    background_color: Color::WHITE.into(),
-                    ..Default::default()
-                })
-                .with_children(|parent| {
-                    parent.spawn(TextBundle::from_section(
-                        "Goat-1",
-                        text_style.to_owned()
-                    ));
-                });
-            });
-        })
-        .with_children(|parent| {
-            parent.spawn((ButtonBundle {
-                style: Style {
-                    width: Val::Px(160.0),
-                    height: Val::Px(32.0),
-                    //border: UiRect::all(Val::Px(5.0)),
-                    // horizontally center child text
-                    justify_content: JustifyContent::Center,
-                    // vertically center child text
-                    align_items: AlignItems::Center,
-                    margin: UiRect::bottom(Val::Px(10.0)),
-                    ..default()
-                },
-                background_color: Color::NONE.into(),
-                ..default()
-            }, 
-            MenuButton{
-                button_effect: ButtonEffect::Play,
-                pickup_object: EntityType::None,
-                level: "Levels/goat-tutorial-2.skb".to_owned(),
-                hovering: false, 
-                hover_time: 0.0
-            }))
-            .with_children(|parent| {
-                parent.spawn(ImageBundle {
-                    image: UiImage::new(image.clone()),
-                    style: Style {
-                        width: Val::Percent(100.0),
-                        height: Val::Percent(100.0),
-                        justify_content: JustifyContent::Center,
-                        align_items: AlignItems::Center,
-                        ..Default::default()
-                    },
-                    background_color: Color::WHITE.into(),
-                    ..Default::default()
-                })
-                .with_children(|parent| {
-                    parent.spawn(TextBundle::from_section(
-                        "Goat-2",
-                        text_style.to_owned()
-                    ));
-                });
-            });
-        })
-        .with_children(|parent| {
-            parent.spawn((ButtonBundle {
-                style: Style {
-                    width: Val::Px(160.0),
-                    height: Val::Px(32.0),
-                    //border: UiRect::all(Val::Px(5.0)),
-                    // horizontally center child text
-                    justify_content: JustifyContent::Center,
-                    // vertically center child text
-                    align_items: AlignItems::Center,
-                    margin: UiRect::bottom(Val::Px(10.0)),
-                    ..default()
-                },
-                background_color: Color::NONE.into(),
-                ..default()
-            }, 
-            MenuButton{
-                button_effect: ButtonEffect::Play,
-                pickup_object: EntityType::None,
-                level: "Levels/horse-tutorial-1.skb".to_owned(),
-                hovering: false, 
-                hover_time: 0.0
-            }))
-            .with_children(|parent| {
-                parent.spawn(ImageBundle {
-                    image: UiImage::new(image.clone()),
-                    style: Style {
-                        width: Val::Percent(100.0),
-                        height: Val::Percent(100.0),
-                        justify_content: JustifyContent::Center,
-                        align_items: AlignItems::Center,
-                        ..Default::default()
-                    },
-                    background_color: Color::WHITE.into(),
-                    ..Default::default()
-                })
-                .with_children(|parent| {
-                    parent.spawn(TextBundle::from_section(
-                        "Horse-1",
-                        text_style.to_owned()
-                    ));
-                });
-            });
-        })
-        .with_children(|parent| {
-            parent.spawn((ButtonBundle {
-                style: Style {
-                    width: Val::Px(160.0),
-                    height: Val::Px(32.0),
-                    //border: UiRect::all(Val::Px(5.0)),
-                    // horizontally center child text
-                    justify_content: JustifyContent::Center,
-                    // vertically center child text
-                    align_items: AlignItems::Center,
-                    margin: UiRect::bottom(Val::Px(10.0)),
-                    ..default()
-                },
-                background_color: Color::NONE.into(),
-                ..default()
-            }, 
-            MenuButton{
-                button_effect: ButtonEffect::Play,
-                pickup_object: EntityType::None,
-                level: "Levels/horse-tutorial-2.skb".to_owned(),
-                hovering: false, 
-                hover_time: 0.0
-            }))
-            .with_children(|parent| {
-                parent.spawn(ImageBundle {
-                    image: UiImage::new(image.clone()),
-                    style: Style {
-                        width: Val::Percent(100.0),
-                        height: Val::Percent(100.0),
-                        justify_content: JustifyContent::Center,
-                        align_items: AlignItems::Center,
-                        ..Default::default()
-                    },
-                    background_color: Color::WHITE.into(),
-                    ..Default::default()
-                })
-                .with_children(|parent| {
-                    parent.spawn(TextBundle::from_section(
-                        "Horse-2",
-                        text_style.to_owned()
-                    ));
-                });
-            });
-        })
-        .with_children(|parent| {
-            parent.spawn((ButtonBundle {
-                style: Style {
-                    width: Val::Px(160.0),
-                    height: Val::Px(32.0),
-                    //border: UiRect::all(Val::Px(5.0)),
-                    // horizontally center child text
-                    justify_content: JustifyContent::Center,
-                    // vertically center child text
-                    align_items: AlignItems::Center,
-                    margin: UiRect::bottom(Val::Px(10.0)),
-                    ..default()
-                },
-                background_color: Color::NONE.into(),
-                ..default()
-            }, 
-            MenuButton{
-                button_effect: ButtonEffect::Play,
-                pickup_object: EntityType::None,
-                level: "Levels/pig-tutorial-1.skb".to_owned(),
-                hovering: false, 
-                hover_time: 0.0
-            }))
-            .with_children(|parent| {
-                parent.spawn(ImageBundle {
-                    image: UiImage::new(image.clone()),
-                    style: Style {
-                        width: Val::Percent(100.0),
-                        height: Val::Percent(100.0),
-                        justify_content: JustifyContent::Center,
-                        align_items: AlignItems::Center,
-                        ..Default::default()
-                    },
-                    background_color: Color::WHITE.into(),
-                    ..Default::default()
-                })
-                .with_children(|parent| {
-                    parent.spawn(TextBundle::from_section(
-                        "Pig-1",
-                        text_style.to_owned()
-                    ));
-                });
-            });
-        })
-        .with_children(|parent| {
-            parent.spawn((ButtonBundle {
-                style: Style {
-                    width: Val::Px(160.0),
-                    height: Val::Px(32.0),
-                    //border: UiRect::all(Val::Px(5.0)),
-                    // horizontally center child text
-                    justify_content: JustifyContent::Center,
-                    // vertically center child text
-                    align_items: AlignItems::Center,
-                    margin: UiRect::bottom(Val::Px(10.0)),
-                    ..default()
-                },
-                background_color: Color::NONE.into(),
-                ..default()
-            }, 
-            MenuButton{
-                button_effect: ButtonEffect::Play,
-                pickup_object: EntityType::None,
-                level: "Levels/pig-tutorial-2.skb".to_owned(),
-                hovering: false, 
-                hover_time: 0.0
-            }))
-            .with_children(|parent| {
-                parent.spawn(ImageBundle {
-                    image: UiImage::new(image.clone()),
-                    style: Style {
-                        width: Val::Percent(100.0),
-                        height: Val::Percent(100.0),
-                        justify_content: JustifyContent::Center,
-                        align_items: AlignItems::Center,
-                        ..Default::default()
-                    },
-                    background_color: Color::WHITE.into(),
-                    ..Default::default()
-                })
-                .with_children(|parent| {
-                    parent.spawn(TextBundle::from_section(
-                        "Pig-2",
-                        text_style.to_owned()
-                    ));
-                });
-            });
-        })
-        .with_children(|parent| {
-            parent.spawn((ButtonBundle {
-                style: Style {
-                    width: Val::Px(160.0),
-                    height: Val::Px(32.0),
-                    //border: UiRect::all(Val::Px(5.0)),
-                    // horizontally center child text
-                    justify_content: JustifyContent::Center,
-                    // vertically center child text
-                    align_items: AlignItems::Center,
-                    margin: UiRect::bottom(Val::Px(10.0)),
-                    ..default()
-                },
-                background_color: Color::NONE.into(),
-                ..default()
-            }, 
-            MenuButton{
-                button_effect: ButtonEffect::Play,
-                pickup_object: EntityType::None,
-                level: "Levels/blank.skb".to_owned(),
-                hovering: false, 
-                hover_time: 0.0
-            }))
-            .with_children(|parent| {
-                parent.spawn(ImageBundle {
-                    image: UiImage::new(image.clone()),
-                    style: Style {
-                        width: Val::Percent(100.0),
-                        height: Val::Percent(100.0),
-                        justify_content: JustifyContent::Center,
-                        align_items: AlignItems::Center,
-                        ..Default::default()
-                    },
-                    background_color: Color::WHITE.into(),
-                    ..Default::default()
-                })
-                .with_children(|parent| {
-                    parent.spawn(TextBundle::from_section(
-                        "Editor",
-                        text_style.to_owned()
-                    ));
-                });
-            });
-        })
-        .with_children(|parent| {
-            parent.spawn((ButtonBundle {
-                style: Style {
-                    width: Val::Px(160.0),
-                    height: Val::Px(32.0),
-                    //border: UiRect::all(Val::Px(5.0)),
-                    // horizontally center child text
-                    justify_content: JustifyContent::Center,
-                    // vertically center child text
-                    align_items: AlignItems::Center,
-                    margin: UiRect::bottom(Val::Px(10.0)),
-                    grid_column: GridPlacement::span(2),
-                    ..default()
-                },
-                background_color: Color::NONE.into(),
-                ..default()
-            }, 
-            MenuButton{
-                button_effect: ButtonEffect::NextWorld,
-                pickup_object: EntityType::None,
-                level: "".to_owned(),
-                hovering: false, 
-                hover_time: 0.0
-            }))
-            .with_children(|parent| {
-                parent.spawn(ImageBundle {
-                    image: UiImage::new(image.clone()),
-                    style: Style {
-                        width: Val::Percent(100.0),
-                        height: Val::Percent(100.0),
-                        justify_content: JustifyContent::Center,
-                        align_items: AlignItems::Center,
-                        ..Default::default()
-                    },
-                    background_color: Color::WHITE.into(),
-                    ..Default::default()
-                })
-                .with_children(|parent| {
-                    parent.spawn(TextBundle::from_section(
-                        "V",
-                        text_style.to_owned()
-                    ));
-                });
-            });
-        }).id()*/];
+    menu_data.button_entities = vec![menu.id()];
 }
 
 pub fn pause_menu_setup(mut commands: Commands, asset_server: Res<AssetServer>, mut pause_menu_data: ResMut<PauseMenuData>) {
@@ -877,7 +435,7 @@ pub fn pause_menu_setup(mut commands: Commands, asset_server: Res<AssetServer>, 
     };
 
     let image = asset_server.load("UISign.png");
-    
+
     pause_menu_data.button_entities = vec![
         commands.spawn(NodeBundle {
             style: Style {
@@ -938,135 +496,229 @@ pub fn pause_menu_setup(mut commands: Commands, asset_server: Res<AssetServer>, 
                     ));
                 });
             });
-            parent.spawn((ButtonBundle {
-                style: Style {
-                    width: Val::Px(160.0),
-                    height: Val::Px(32.0),
-                    //border: UiRect::all(Val::Px(5.0)),
-                    // horizontally center child text
-                    justify_content: JustifyContent::Center,
-                    // vertically center child text
-                    align_items: AlignItems::Center,
-                    ..default()
-                },
-                background_color: Color::NONE.into(),
-                ..default()
-            }, 
-            MenuButton{
-                button_effect: ButtonEffect::Save,
-                pickup_object: EntityType::None,
-                level: "".to_owned(),
-                hovering: false, 
-                hover_time: 0.0
-            }))
-            .with_children(|parent| {
-                parent.spawn(ImageBundle {
-                    image: UiImage::new(image.clone()),
+            if pause_menu_data.mode == PauseMenuMode::Lose {
+                parent.spawn((ButtonBundle {
                     style: Style {
-                        width: Val::Percent(100.0),
-                        height: Val::Percent(100.0),
+                        width: Val::Px(160.0),
+                        height: Val::Px(32.0),
+                        //border: UiRect::all(Val::Px(5.0)),
                         // horizontally center child text
                         justify_content: JustifyContent::Center,
                         // vertically center child text
                         align_items: AlignItems::Center,
-                        ..Default::default()
+                        ..default()
                     },
-                    background_color: Color::WHITE.into(),
-                    ..Default::default()
-                })
-                .with_children(|parent| {
-                    parent.spawn(TextBundle::from_section(
-                        "Save",
-                        text_style.to_owned()
-                    ));
-                });
-            });
-            parent.spawn((ButtonBundle {
-                style: Style {
-                    width: Val::Px(160.0),
-                    height: Val::Px(32.0),
-                    //border: UiRect::all(Val::Px(5.0)),
-                    // horizontally center child text
-                    justify_content: JustifyContent::Center,
-                    // vertically center child text
-                    align_items: AlignItems::Center,
+                    background_color: Color::NONE.into(),
                     ..default()
-                },
-                background_color: Color::NONE.into(),
-                ..default()
-            }, 
-            MenuButton{
-                button_effect: ButtonEffect::Load,
-                pickup_object: EntityType::None,
-                level: "".to_owned(),
-                hovering: false, 
-                hover_time: 0.0
-            }))
-            .with_children(|parent| {
-                parent.spawn(ImageBundle {
-                    image: UiImage::new(image.clone()),
+                }, 
+                MenuButton{
+                    button_effect: ButtonEffect::Reload,
+                    pickup_object: EntityType::None,
+                    level: "".to_owned(),
+                    hovering: false, 
+                    hover_time: 0.0
+                }))
+                .with_children(|parent| {
+                    parent.spawn(ImageBundle {
+                        image: UiImage::new(image.clone()),
+                        style: Style {
+                            width: Val::Percent(100.0),
+                            height: Val::Percent(100.0),
+                            // horizontally center child text
+                            justify_content: JustifyContent::Center,
+                            // vertically center child text
+                            align_items: AlignItems::Center,
+                            ..Default::default()
+                        },
+                        background_color: Color::WHITE.into(),
+                        ..Default::default()
+                    })
+                    .with_children(|parent| {
+                        parent.spawn(TextBundle::from_section(
+                            "Reload",
+                            text_style.to_owned()
+                        ));
+                    });
+                });
+            }
+            if pause_menu_data.mode == PauseMenuMode::Lose || pause_menu_data.mode == PauseMenuMode::Win {
+                parent.spawn((ButtonBundle {
                     style: Style {
-                        width: Val::Percent(100.0),
-                        height: Val::Percent(100.0),
+                        width: Val::Px(160.0),
+                        height: Val::Px(32.0),
+                        //border: UiRect::all(Val::Px(5.0)),
                         // horizontally center child text
                         justify_content: JustifyContent::Center,
                         // vertically center child text
                         align_items: AlignItems::Center,
-                        ..Default::default()
+                        ..default()
                     },
-                    background_color: Color::WHITE.into(),
-                    ..Default::default()
-                })
-                .with_children(|parent| {
-                    parent.spawn(TextBundle::from_section(
-                        "Load",
-                        text_style.to_owned()
-                    ));
-                });
-            });
-            parent.spawn((ButtonBundle {
-                style: Style {
-                    width: Val::Px(160.0),
-                    height: Val::Px(32.0),
-                    //border: UiRect::all(Val::Px(5.0)),
-                    // horizontally center child text
-                    justify_content: JustifyContent::Center,
-                    // vertically center child text
-                    align_items: AlignItems::Center,
+                    background_color: Color::NONE.into(),
                     ..default()
-                },
-                background_color: Color::NONE.into(),
-                ..default()
-            }, 
-            MenuButton{
-                button_effect: ButtonEffect::UnPause,
-                pickup_object: EntityType::None,
-                level: "".to_owned(),
-                hovering: false, 
-                hover_time: 0.0
-            }))
-            .with_children(|parent| {
-                parent.spawn(ImageBundle {
-                    image: UiImage::new(image.clone()),
+                }, 
+                MenuButton{
+                    button_effect: ButtonEffect::Undo,
+                    pickup_object: EntityType::None,
+                    level: "".to_owned(),
+                    hovering: false, 
+                    hover_time: 0.0
+                }))
+                .with_children(|parent| {
+                    parent.spawn(ImageBundle {
+                        image: UiImage::new(image.clone()),
+                        style: Style {
+                            width: Val::Percent(100.0),
+                            height: Val::Percent(100.0),
+                            // horizontally center child text
+                            justify_content: JustifyContent::Center,
+                            // vertically center child text
+                            align_items: AlignItems::Center,
+                            ..Default::default()
+                        },
+                        background_color: Color::WHITE.into(),
+                        ..Default::default()
+                    })
+                    .with_children(|parent| {
+                        parent.spawn(TextBundle::from_section(
+                            "Undo",
+                            text_style.to_owned()
+                        ));
+                    });
+                });
+            }
+            if pause_menu_data.mode == PauseMenuMode::Editor {
+                parent.spawn((ButtonBundle {
                     style: Style {
-                        width: Val::Percent(100.0),
-                        height: Val::Percent(100.0),
+                        width: Val::Px(160.0),
+                        height: Val::Px(32.0),
+                        //border: UiRect::all(Val::Px(5.0)),
                         // horizontally center child text
                         justify_content: JustifyContent::Center,
                         // vertically center child text
                         align_items: AlignItems::Center,
-                        ..Default::default()
+                        ..default()
                     },
-                    background_color: Color::WHITE.into(),
-                    ..Default::default()
-                })
+                    background_color: Color::NONE.into(),
+                    ..default()
+                }, 
+                MenuButton{
+                    button_effect: ButtonEffect::Save,
+                    pickup_object: EntityType::None,
+                    level: "".to_owned(),
+                    hovering: false, 
+                    hover_time: 0.0
+                }))
                 .with_children(|parent| {
-                    parent.spawn(TextBundle::from_section(
-                        "Continue",
-                        text_style.to_owned()
-                    ));
+                    parent.spawn(ImageBundle {
+                        image: UiImage::new(image.clone()),
+                        style: Style {
+                            width: Val::Percent(100.0),
+                            height: Val::Percent(100.0),
+                            // horizontally center child text
+                            justify_content: JustifyContent::Center,
+                            // vertically center child text
+                            align_items: AlignItems::Center,
+                            ..Default::default()
+                        },
+                        background_color: Color::WHITE.into(),
+                        ..Default::default()
+                    })
+                    .with_children(|parent| {
+                        parent.spawn(TextBundle::from_section(
+                            "Save",
+                            text_style.to_owned()
+                        ));
+                    });
                 });
-            });
+                parent.spawn((ButtonBundle {
+                    style: Style {
+                        width: Val::Px(160.0),
+                        height: Val::Px(32.0),
+                        //border: UiRect::all(Val::Px(5.0)),
+                        // horizontally center child text
+                        justify_content: JustifyContent::Center,
+                        // vertically center child text
+                        align_items: AlignItems::Center,
+                        ..default()
+                    },
+                    background_color: Color::NONE.into(),
+                    ..default()
+                }, 
+                MenuButton{
+                    button_effect: ButtonEffect::Load,
+                    pickup_object: EntityType::None,
+                    level: "".to_owned(),
+                    hovering: false, 
+                    hover_time: 0.0
+                }))
+                .with_children(|parent| {
+                    parent.spawn(ImageBundle {
+                        image: UiImage::new(image.clone()),
+                        style: Style {
+                            width: Val::Percent(100.0),
+                            height: Val::Percent(100.0),
+                            // horizontally center child text
+                            justify_content: JustifyContent::Center,
+                            // vertically center child text
+                            align_items: AlignItems::Center,
+                            ..Default::default()
+                        },
+                        background_color: Color::WHITE.into(),
+                        ..Default::default()
+                    })
+                    .with_children(|parent| {
+                        parent.spawn(TextBundle::from_section(
+                            "Load",
+                            text_style.to_owned()
+                        ));
+                    });
+                });
+            }
+            if pause_menu_data.mode == PauseMenuMode::Pause || pause_menu_data.mode == PauseMenuMode::Editor {
+                parent.spawn((ButtonBundle {
+                    style: Style {
+                        width: Val::Px(160.0),
+                        height: Val::Px(32.0),
+                        //border: UiRect::all(Val::Px(5.0)),
+                        // horizontally center child text
+                        justify_content: JustifyContent::Center,
+                        // vertically center child text
+                        align_items: AlignItems::Center,
+                        ..default()
+                    },
+                    background_color: Color::NONE.into(),
+                    ..default()
+                }, 
+                MenuButton{
+                    button_effect: ButtonEffect::UnPause,
+                    pickup_object: EntityType::None,
+                    level: "".to_owned(),
+                    hovering: false, 
+                    hover_time: 0.0
+                }))
+                .with_children(|parent| {
+                    parent.spawn(ImageBundle {
+                        image: UiImage::new(image.clone()),
+                        style: Style {
+                            width: Val::Percent(100.0),
+                            height: Val::Percent(100.0),
+                            // horizontally center child text
+                            justify_content: JustifyContent::Center,
+                            // vertically center child text
+                            align_items: AlignItems::Center,
+                            ..Default::default()
+                        },
+                        background_color: Color::WHITE.into(),
+                        ..Default::default()
+                    })
+                    .with_children(|parent| {
+                        parent.spawn(TextBundle::from_section(
+                            "Continue",
+                            text_style.to_owned()
+                        ));
+                    });
+                });
+            }
         }).id()];
 }
 
@@ -1575,6 +1227,7 @@ pub fn button_system(
     time: Res<Time>,
     mut saving: ResMut<SaveRes>,
     mut simulating: ResMut<SimulateRes>,
+    mut pause_menu_data: ResMut<PauseMenuData>,
     mut app_exit_events: ResMut<Events<bevy::app::AppExit>>,
     mut cursor_q: Query<&mut Cursor>,
     mut round_counter_q: Query<&mut Text, With<RoundCounter>>,
@@ -1585,7 +1238,10 @@ pub fn button_system(
             Interaction::Pressed => {
                 match menu_button.button_effect {
                     ButtonEffect::MainMenu => {next_state.set(GameState::Menu);}
-                    ButtonEffect::Pause => {next_state.set(GameState::Pause);}
+                    ButtonEffect::Pause => {
+                        pause_menu_data.mode = PauseMenuMode::Pause;
+                        next_state.set(GameState::Pause);
+                    }
                     ButtonEffect::UnPause => {next_state.set(GameState::Gameplay);}
                     ButtonEffect::LevelSelect => {next_state.set(GameState::LevelSelect);}
                     ButtonEffect::Play => {
@@ -1611,7 +1267,14 @@ pub fn button_system(
                         saving.saving = SaveStage::Loading;
                         saving.save = "level.skb".to_owned();
                     }
-                    ButtonEffect::Undo => {saving.saving = SaveStage::Undo;}
+                    ButtonEffect::Reload => {
+                        next_state.set(GameState::Gameplay);
+                        saving.saving = SaveStage::Loading;
+                    }
+                    ButtonEffect::Undo => {
+                        next_state.set(GameState::Gameplay);
+                        saving.saving = SaveStage::Undo;
+                    }
                     ButtonEffect::PickUp => {
                         if let Ok(mut cursor) = cursor_q.get_single_mut() {
                             cursor.holding = menu_button.pickup_object;

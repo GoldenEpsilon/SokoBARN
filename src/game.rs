@@ -1116,7 +1116,11 @@ impl Field {
         println!("{:?}", move_direction);
 
         if move_direction == MoveDirection::None || 
-            (entity.state != EntityState::Sliding && !self.likes_food_on_tile(entity, &entity_q.to_readonly(), target_location.x, target_location.y)) {
+            (
+                entity.state != EntityState::Sliding && 
+                !(entity.state == EntityState::Special && entity.entity_type == EntityType::Chicken) &&
+                !self.likes_food_on_tile(entity, &entity_q.to_readonly(), target_location.x, target_location.y)
+            ) {
             if let Some(entity_id) = self.tiles[startx][starty].3 {
                 if let Ok(mut moving_entity) = entity_q.get_mut(entity_id) {
                     moving_entity.state = EntityState::Idle;
@@ -1761,9 +1765,9 @@ pub fn mouse_controls(
                             _ => {
                                 field.set_entity(&mut commands, &sprites, cursor.holding, tile_pos_x, tile_pos_y);
                                 cursor.holding = EntityType::None;
-                                cursor_holding = true;
                             }
                         }
+                        cursor_holding = true;
                     }else if buttons.just_released(MouseButton::Left) && Vec2::distance(cursor.pos, cursor.starting_pos) < CURSOR_MIN_MOVE_DIST {
                         cursor.drag_drop = false;
                     }else if cursor.holding == EntityType::None {
@@ -1947,7 +1951,7 @@ pub fn saving_system(
                         }
                     }
                 }
-
+                saving.quicksaves = vec![];
                 saving.saving = SaveStage::SaveUndo;
             }
             SaveStage::SaveUndo => {
