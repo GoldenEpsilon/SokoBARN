@@ -28,7 +28,6 @@ pub enum GameState {
     #[default]
     Menu,
     LevelSelect,
-    ReloadLevelSelect,
     Gameplay,
     Pause,
 }
@@ -60,6 +59,13 @@ pub struct Scaling {
 #[derive(Default)]
 pub struct Sprites {
     sprites: HashMap<String, Handle<TextureAtlas>>
+}
+
+#[derive(Resource)]
+#[derive(Default)]
+#[derive(PartialEq, Eq)]
+pub struct ReloadLevelSelect {
+    reloading: bool
 }
 
 #[derive(Resource)]
@@ -109,9 +115,8 @@ fn main() {
 
         //Menus
         .add_systems(OnEnter(GameState::LevelSelect), level_select_setup)
+        .add_systems(Update, (menu_cleanup, level_select_setup).chain().run_if(in_state(GameState::LevelSelect).and_then(resource_equals(ReloadLevelSelect{reloading: true}))))
         .add_systems(OnExit(GameState::LevelSelect), menu_cleanup)
-
-        .add_systems(OnEnter(GameState::ReloadLevelSelect), enter_level_select)
         
         .add_systems(OnEnter(GameState::Pause), pause_menu_setup)
         .add_systems(OnExit(GameState::Pause), pause_menu_cleanup)
@@ -142,11 +147,12 @@ fn setup(
     mut texture_atlases: ResMut<Assets<TextureAtlas>>
     ) {
 
-    commands.insert_resource(SaveRes { saving: SaveStage::Idle, save: "level.skb".to_owned(), quicksaves: vec![] });
+    commands.insert_resource(SaveRes { saving: SaveStage::Idle, save: "level.skb".to_owned(), quicksaves: vec![], editor_mode: None });
     commands.insert_resource(SimulateRes { simulating: false, rounds: 1, ..default() });
     commands.insert_resource(MenuData { button_entities: vec![] });
     commands.insert_resource(PauseMenuData { button_entities: vec![], mode: PauseMenuMode::Pause });
     commands.insert_resource(Weather { raindrop_count: 800 /*400*/, ..default() });
+    commands.insert_resource(ReloadLevelSelect{reloading: true});
 
     let mut worlds = vec![];
 
@@ -246,14 +252,21 @@ fn setup(
     {let level = "Levels/horse-tutorial-2.skb";levels.insert(level.to_owned(), asset_server.load(level));}
     {let level = "Levels/pig-tutorial-1.skb";levels.insert(level.to_owned(), asset_server.load(level));}
     {let level = "Levels/pig-tutorial-2.skb";levels.insert(level.to_owned(), asset_server.load(level));}
+    {let level = "Levels/chicken-tutorial-1.skb";levels.insert(level.to_owned(), asset_server.load(level));}
+    {let level = "Levels/chicken-tutorial-2.skb";levels.insert(level.to_owned(), asset_server.load(level));}
+    {let level = "Levels/Night-1.skb";levels.insert(level.to_owned(), asset_server.load(level));}
+    {let level = "Levels/Rain-1.skb";levels.insert(level.to_owned(), asset_server.load(level));}
+    {let level = "Levels/Rain-2.skb";levels.insert(level.to_owned(), asset_server.load(level));}
     {let level = "Levels/blank.skb";levels.insert(level.to_owned(), asset_server.load(level));}
     
     commands.insert_resource(Levels { levels: levels });
 
     
     let mut ui_images: HashMap<String, Handle<Image>> = HashMap::new();
-    ui_images.insert("".to_owned(), asset_server.load(""));
-    
+    ui_images.insert("UISign".to_owned(), asset_server.load("Sprites/Misc/sokobarn-Signage.png"));
+    ui_images.insert("UILogo".to_owned(), asset_server.load("Sprites/Misc/sokobarn-Logo.png"));
+    ui_images.insert("UIBottom".to_owned(), asset_server.load("Sprites/Misc/sokobarn-lower-ui.png"));
+    ui_images.insert("UIRight".to_owned(), asset_server.load("Sprites/Misc/sokobarn-level-ui-1.png"));
     commands.insert_resource(UIImages { sprites: ui_images });
 
     let mut sprites: HashMap<String, Handle<TextureAtlas>> = HashMap::new();
@@ -273,6 +286,7 @@ fn setup(
     sprites.insert("Cursor".to_owned(), texture_atlases.add(TextureAtlas::from_grid(asset_server.load("Sprites/Misc/sokobarn-Cursors.png"), Vec2::new(64.0, 64.0), 5, 1, None, None)));
     sprites.insert("Rain".to_owned(), texture_atlases.add(TextureAtlas::from_grid(asset_server.load("Sprites/Misc/sokobarn-Rain.png"), Vec2::new(5.0, 5.0), 4, 1, None, None)));
     sprites.insert("MuddySplash".to_owned(), texture_atlases.add(TextureAtlas::from_grid(asset_server.load("Sprites/Misc/sokobarn-MuddySplash.png"), Vec2::new(28.0, 28.0), 4, 1, None, None)));
+    sprites.insert("Disabled".to_owned(), texture_atlases.add(TextureAtlas::from_grid(asset_server.load("Sprites/Misc/sokobarn-Disabled.png"), Vec2::new(32.0, 32.0), 1, 1, None, None)));
 
     commands.insert_resource(Sprites { sprites: sprites });
 
@@ -383,6 +397,7 @@ fn setup(
 fn resize_system(mut object_set: ParamSet<(
         Query<(&mut Transform, &GameEntity)>,
         Query<(&mut Transform, &Tile)>,
+        Query<(&mut Transform, &Depth)>,
         Query<(&mut Transform, &Scaling)>,)>,
     windows: Query<&Window>,
     mut ui_scale: ResMut<UiScale>,){
@@ -393,7 +408,7 @@ fn resize_system(mut object_set: ParamSet<(
             transform.translation = transform.translation.lerp(Vec3{ 
                 x: (game_entity.location.x as f32 - TILE_OFFSET_X)*TILE_SIZE*size, 
                 y: (game_entity.location.y as f32 - TILE_OFFSET_Y)*TILE_SIZE*size, 
-                z: -(game_entity.location.y as f32)*0.1 + -(game_entity.location.x as f32)*0.01 + game_entity.location.z as f32 
+                z: -(game_entity.location.y as f32) * 4.0 + -(game_entity.location.x as f32)*0.1 + game_entity.location.z as f32 
             }, 0.2);
         }
         for (mut transform, tile) in &mut object_set.p1().iter_mut() {
@@ -401,10 +416,17 @@ fn resize_system(mut object_set: ParamSet<(
             transform.translation = Vec3{ 
                 x: (tile.location.x as f32 - TILE_OFFSET_X)*TILE_SIZE*size, 
                 y: (tile.location.y as f32 - TILE_OFFSET_Y)*TILE_SIZE*size, 
-                z: -(tile.location.y as f32)*0.1 + -(tile.location.x as f32)*0.01 + tile.location.z as f32 
+                z: -(tile.location.y as f32) * 4.0 + -(tile.location.x as f32)*0.1 + tile.location.z as f32 
             };
         }
-        for (mut transform, scaling_obj) in &mut object_set.p2().iter_mut() {
+        for (mut transform, depth) in &mut object_set.p2().iter_mut() {
+            transform.translation = Vec3{ 
+                x: transform.translation.x, 
+                y: transform.translation.y, 
+                z: depth.depth/size
+            };
+        }
+        for (mut transform, scaling_obj) in &mut object_set.p3().iter_mut() {
             transform.scale = Vec3::splat(size);
             transform.translation = Vec3{ 
                 x: (scaling_obj.position.x as f32 - TILE_OFFSET_X)*TILE_SIZE*size, 
@@ -498,7 +520,7 @@ pub fn animation_system(
                 EntityState::Eating => {2}
                 EntityState::Celebrating => {4}
                 EntityState::Special => {2}
-                EntityState::Failure => {4}
+                EntityState::Failure => {if entity.entity_type == EntityType::Wagon { 2 } else { 4 } }
             } + offset;
             if let Some(prev_state) = entity.prev_state {
                 if prev_state != entity.state {

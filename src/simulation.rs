@@ -17,11 +17,12 @@ pub fn simulate(
     mut pause_menu_data: ResMut<PauseMenuData>,
     tile_q: Query<&Tile>,){
     if simulating.loss {
-        pause_menu_data.mode = PauseMenuMode::Lose;
-        next_state.set(GameState::Pause);
         for mut entity in &mut entity_q {
             entity.state = EntityState::Failure;
         }
+        pause_menu_data.mode = PauseMenuMode::Lose;
+        saving.saving = SaveStage::SaveUndo;
+        next_state.set(GameState::Pause);
         return;
     }
     if simulating.simulating && !simulating.loss && !simulating.win {
@@ -94,11 +95,12 @@ pub fn simulate(
                         _ => {}
                     }
                 }
-                if celebrate {
+                if field.check_win(&entity_q.to_readonly(), &tile_q) {
                     for mut entity in &mut entity_q {
                         entity.state = EntityState::Celebrating;
                     }
                     pause_menu_data.mode = PauseMenuMode::Win;
+                    saving.saving = SaveStage::SaveUndo;
                     next_state.set(GameState::Pause);
                 }
                 simulating.simulation_step = match simulating.simulation_step {
@@ -121,11 +123,11 @@ pub fn simulate(
     }
     if !simulating.simulating && !simulating.loss {
         simulating.simulation_step = EntityType::None;
-        if field.check_win(&entity_q.to_readonly(), &tile_q) {
+        /*if field.check_win(&entity_q.to_readonly(), &tile_q) {
             for mut entity in &mut entity_q {
                 entity.state = EntityState::Celebrating;
             }
             simulating.win = true;
-        }
+        }*/
     }
 }

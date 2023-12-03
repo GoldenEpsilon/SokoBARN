@@ -181,12 +181,21 @@ pub struct Location {
     pub z: usize,
 }
 
+#[derive(Component)]
+#[derive(Serialize, Deserialize, Debug)]
+#[derive(Clone, Copy)]
+#[derive(Default)]
+pub struct Depth {
+    pub depth: f32
+}
+
 #[derive(Resource)]
 pub struct Field {
     //Tile, Buttons, Food, Animals
     pub tiles: Vec<Vec<(Entity, Option<Entity>, Option<Entity>, Option<Entity>, Option<Entity>)>>,
     pub cursor: Entity,
     pub simulate_timer: PlayModeTick,
+    pub editor_mode: bool
 }
 
 impl Field {
@@ -225,7 +234,7 @@ impl Field {
                 sprite: TextureAtlasSprite::new(4),
                 ..default()
             }).id();
-        let field = Field { tiles, cursor, simulate_timer: PlayModeTick(Timer::from_seconds(TICK_SPEED, TimerMode::Repeating)) };
+        let field = Field { tiles, cursor, simulate_timer: PlayModeTick(Timer::from_seconds(TICK_SPEED, TimerMode::Repeating)), editor_mode: false };
         return field;
     }
 
@@ -303,9 +312,6 @@ impl Field {
                         }
                     ).id()
                 }
-                TileType::Fence => {
-                    self.spawn_fence(commands, &sprites, x, y);
-                }
                 TileType::Mud => {
                     self.tiles[x][y].0 = commands.spawn(
                         TileBundle {
@@ -313,29 +319,11 @@ impl Field {
                                 location: Location { 
                                     x: x,
                                     y: y,
-                                    z: 2,
+                                    z: 10,
                                 },
                             },
                             sprite: SpriteSheetBundle {
                                 texture_atlas: sprites.sprites["Mud"].clone(),
-                                sprite: TextureAtlasSprite::new((x % 2) + 2 * (y % 2)),
-                                ..default()
-                            }
-                        }
-                    ).id()
-                }
-                TileType::Rocks => {
-                    self.tiles[x][y].0 = commands.spawn(
-                        TileBundle {
-                            tile: Tile { tile_type: TileType::Rocks,
-                                location: Location { 
-                                    x: x,
-                                    y: y,
-                                    z: 5,
-                                },
-                            },
-                            sprite: SpriteSheetBundle {
-                                texture_atlas: sprites.sprites["Rocks"].clone(),
                                 sprite: TextureAtlasSprite::new((x % 2) + 2 * (y % 2)),
                                 ..default()
                             }
@@ -349,11 +337,29 @@ impl Field {
                                 location: Location { 
                                     x: x,
                                     y: y,
-                                    z: 4,
+                                    z: 15,
                                 },
                             },
                             sprite: SpriteSheetBundle {
                                 texture_atlas: sprites.sprites["MuddyRocks"].clone(),
+                                sprite: TextureAtlasSprite::new((x % 2) + 2 * (y % 2)),
+                                ..default()
+                            }
+                        }
+                    ).id()
+                }
+                TileType::Rocks => {
+                    self.tiles[x][y].0 = commands.spawn(
+                        TileBundle {
+                            tile: Tile { tile_type: TileType::Rocks,
+                                location: Location { 
+                                    x: x,
+                                    y: y,
+                                    z: 20,
+                                },
+                            },
+                            sprite: SpriteSheetBundle {
+                                texture_atlas: sprites.sprites["Rocks"].clone(),
                                 sprite: TextureAtlasSprite::new((x % 2) + 2 * (y % 2)),
                                 ..default()
                             }
@@ -381,12 +387,15 @@ impl Field {
                             SpriteSheetBundle {
                                 texture_atlas: sprites.sprites["Ditch"].clone(),
                                 sprite: TextureAtlasSprite::new(0),
-                                transform: Transform::from_translation(Vec3 { x: 0.0, y: 0.0, z: 2.1 }),
                                 ..default()
                             },
-                            Ditch
+                            Ditch,
+                            Depth { depth: 31.0 },
                         ));
                     }).id()
+                }
+                TileType::Fence => {
+                    self.spawn_fence(commands, &sprites, x, y);
                 }
                 TileType::Corral => {
                     self.tiles[x][y].0 = commands.spawn(
@@ -405,30 +414,30 @@ impl Field {
                             }
                         }
                     ).with_children(|parent| {
-                        parent.spawn(
+                        parent.spawn((
                             SpriteSheetBundle {
                                 texture_atlas: sprites.sprites["Pens"].clone(),
                                 sprite: TextureAtlasSprite::new(4),
-                                transform: Transform::from_translation(Vec3 { x: 0.0, y: 0.0, z: 1.0 }),
                                 ..default()
-                            }
-                        );
-                        parent.spawn(
+                            },
+                            Depth { depth: 5.0 },
+                        ));
+                        parent.spawn((
                             SpriteSheetBundle {
                                 texture_atlas: sprites.sprites["Pens"].clone(),
                                 sprite: TextureAtlasSprite::new(4+5),
-                                transform: Transform::from_translation(Vec3 { x: 0.0, y: 0.0, z: 2.791 }),
                                 ..default()
-                            }
-                        );
-                        parent.spawn(
+                            },
+                            Depth { depth: 36.0 },
+                        ));
+                        parent.spawn((
                             SpriteSheetBundle {
                                 texture_atlas: sprites.sprites["Pens"].clone(),
                                 sprite: TextureAtlasSprite::new(4+5*2),
-                                transform: Transform::from_translation(Vec3 { x: 0.0, y: 0.0, z: 3.1 }),
                                 ..default()
-                            }
-                        );
+                            },
+                            Depth { depth: 44.0 },
+                        ));
                     }).id()
                 }
                 TileType::ChickenPen => {
@@ -448,30 +457,30 @@ impl Field {
                             }
                         }
                     ).with_children(|parent| {
-                        parent.spawn(
+                        parent.spawn((
                             SpriteSheetBundle {
                                 texture_atlas: sprites.sprites["Pens"].clone(),
                                 sprite: TextureAtlasSprite::new(0),
-                                transform: Transform::from_translation(Vec3 { x: 0.0, y: 0.0, z: 1.0 }),
                                 ..default()
-                            }
-                        );
-                        parent.spawn(
+                            },
+                            Depth { depth: 5.0 },
+                        ));
+                        parent.spawn((
                             SpriteSheetBundle {
                                 texture_atlas: sprites.sprites["Pens"].clone(),
                                 sprite: TextureAtlasSprite::new(0+5),
-                                transform: Transform::from_translation(Vec3 { x: 0.0, y: 0.0, z: 2.791 }),
                                 ..default()
-                            }
-                        );
-                        parent.spawn(
+                            },
+                            Depth { depth: 36.0 },
+                        ));
+                        parent.spawn((
                             SpriteSheetBundle {
                                 texture_atlas: sprites.sprites["Pens"].clone(),
                                 sprite: TextureAtlasSprite::new(0+5*2),
-                                transform: Transform::from_translation(Vec3 { x: 0.0, y: 0.0, z: 3.1 }),
                                 ..default()
-                            }
-                        );
+                            },
+                            Depth { depth: 44.0 },
+                        ));
                     }).id()
                 }
                 TileType::HorsePen => {
@@ -491,30 +500,30 @@ impl Field {
                             }
                         }
                     ).with_children(|parent| {
-                        parent.spawn(
+                        parent.spawn((
                             SpriteSheetBundle {
                                 texture_atlas: sprites.sprites["Pens"].clone(),
                                 sprite: TextureAtlasSprite::new(1),
-                                transform: Transform::from_translation(Vec3 { x: 0.0, y: 0.0, z: 1.0 }),
                                 ..default()
-                            }
-                        );
-                        parent.spawn(
+                            },
+                            Depth { depth: 5.0 },
+                        ));
+                        parent.spawn((
                             SpriteSheetBundle {
                                 texture_atlas: sprites.sprites["Pens"].clone(),
                                 sprite: TextureAtlasSprite::new(1+5),
-                                transform: Transform::from_translation(Vec3 { x: 0.0, y: 0.0, z: 2.791 }),
                                 ..default()
-                            }
-                        );
-                        parent.spawn(
+                            },
+                            Depth { depth: 36.0 },
+                        ));
+                        parent.spawn((
                             SpriteSheetBundle {
                                 texture_atlas: sprites.sprites["Pens"].clone(),
                                 sprite: TextureAtlasSprite::new(1+5*2),
-                                transform: Transform::from_translation(Vec3 { x: 0.0, y: 0.0, z: 3.1 }),
                                 ..default()
-                            }
-                        );
+                            },
+                            Depth { depth: 44.0 },
+                        ));
                     }).id()
                 }
                 TileType::PigPen => {
@@ -534,30 +543,30 @@ impl Field {
                             }
                         }
                     ).with_children(|parent| {
-                        parent.spawn(
+                        parent.spawn((
                             SpriteSheetBundle {
                                 texture_atlas: sprites.sprites["Pens"].clone(),
                                 sprite: TextureAtlasSprite::new(2),
-                                transform: Transform::from_translation(Vec3 { x: 0.0, y: 0.0, z: 1.0 }),
                                 ..default()
-                            }
-                        );
-                        parent.spawn(
+                            },
+                            Depth { depth: 5.0 },
+                        ));
+                        parent.spawn((
                             SpriteSheetBundle {
                                 texture_atlas: sprites.sprites["Pens"].clone(),
                                 sprite: TextureAtlasSprite::new(2+5),
-                                transform: Transform::from_translation(Vec3 { x: 0.0, y: 0.0, z: 2.791 }),
                                 ..default()
-                            }
-                        );
-                        parent.spawn(
+                            },
+                            Depth { depth: 36.0 },
+                        ));
+                        parent.spawn((
                             SpriteSheetBundle {
                                 texture_atlas: sprites.sprites["Pens"].clone(),
                                 sprite: TextureAtlasSprite::new(2+5*2),
-                                transform: Transform::from_translation(Vec3 { x: 0.0, y: 0.0, z: 3.1 }),
                                 ..default()
-                            }
-                        );
+                            },
+                            Depth { depth: 44.0 },
+                        ));
                     }).id()
                 }
                 TileType::GoatPen => {
@@ -577,30 +586,30 @@ impl Field {
                             }
                         }
                     ).with_children(|parent| {
-                        parent.spawn(
+                        parent.spawn((
                             SpriteSheetBundle {
                                 texture_atlas: sprites.sprites["Pens"].clone(),
                                 sprite: TextureAtlasSprite::new(3),
-                                transform: Transform::from_translation(Vec3 { x: 0.0, y: 0.0, z: 1.0 }),
                                 ..default()
-                            }
-                        );
-                        parent.spawn(
+                            },
+                            Depth { depth: 5.0 },
+                        ));
+                        parent.spawn((
                             SpriteSheetBundle {
                                 texture_atlas: sprites.sprites["Pens"].clone(),
                                 sprite: TextureAtlasSprite::new(3+5),
-                                transform: Transform::from_translation(Vec3 { x: 0.0, y: 0.0, z: 2.791 }),
                                 ..default()
-                            }
-                        );
-                        parent.spawn(
+                            },
+                            Depth { depth: 36.0 },
+                        ));
+                        parent.spawn((
                             SpriteSheetBundle {
                                 texture_atlas: sprites.sprites["Pens"].clone(),
                                 sprite: TextureAtlasSprite::new(3+5*2),
-                                transform: Transform::from_translation(Vec3 { x: 0.0, y: 0.0, z: 3.1 }),
                                 ..default()
-                            }
-                        );
+                            },
+                            Depth { depth: 44.0 },
+                        ));
                     }).id()
                 }
             }
@@ -626,7 +635,7 @@ impl Field {
                                 location: Location { 
                                     x: x,
                                     y: y,
-                                    z: 7 + if entity_type == EntityType::Chicken {1} else {0},
+                                    z: 38 + if entity_type == EntityType::Chicken {1} else {0},
                                 },
                                 target_location: Location {x,y,z:0},
                                 offset: Vec2::splat(0.0),
@@ -660,7 +669,7 @@ impl Field {
                                 location: Location { 
                                     x: x,
                                     y: y,
-                                    z: 7,
+                                    z: 37,
                                 },
                                 target_location: Location {x,y,z:0},
                                 offset: Vec2::splat(0.0),
@@ -694,7 +703,7 @@ impl Field {
                                 location: Location { 
                                     x: x,
                                     y: y,
-                                    z: 7,
+                                    z: 38,
                                 },
                                 target_location: Location {x,y,z:0},
                                 offset: Vec2::splat(0.0),
@@ -738,54 +747,54 @@ impl Field {
                 }, Fence
                 )
             ).with_children(|parent| {
-                parent.spawn(
+                parent.spawn((
                     SpriteSheetBundle {
                         texture_atlas: sprites.sprites["Fence"].clone(),
                         sprite: TextureAtlasSprite::new(4),
-                        transform: Transform::from_translation(Vec3 { x: 0.0, y: 0.0, z: 0.1 }),
                         ..default()
-                    }
-                );
+                    },
+                    Depth { depth: 30.0 },
+                ));
             }).with_children(|parent| {
-                parent.spawn(
+                parent.spawn((
                     SpriteSheetBundle {
                         texture_atlas: sprites.sprites["Fence"].clone(),
                         sprite: TextureAtlasSprite::new(1),
                         visibility: Visibility::Hidden,
-                        transform: Transform::from_translation(Vec3 { x: 0.0, y: 0.0, z: 0.2 }),
                         ..default()
-                    }
-                );
+                    },
+                    Depth { depth: 31.0 },
+                ));
             }).with_children(|parent| {
-                parent.spawn(
+                parent.spawn((
                     SpriteSheetBundle {
                         texture_atlas: sprites.sprites["Fence"].clone(),
                         sprite: TextureAtlasSprite::new(0),
                         visibility: Visibility::Hidden,
-                        transform: Transform::from_translation(Vec3 { x: 0.0, y: 0.0, z: 0.2 }),
                         ..default()
-                    }
-                );
+                    },
+                    Depth { depth: 31.0 },
+                ));
             }).with_children(|parent| {
-                parent.spawn(
+                parent.spawn((
                     SpriteSheetBundle {
                         texture_atlas: sprites.sprites["Fence"].clone(),
                         sprite: TextureAtlasSprite::new(3),
                         visibility: Visibility::Hidden,
-                        transform: Transform::from_translation(Vec3 { x: 0.0, y: 0.0, z: 0.2 }),
                         ..default()
-                    }
-                );
+                    },
+                    Depth { depth: 31.0 },
+                ));
             }).with_children(|parent| {
-                parent.spawn(
+                parent.spawn((
                     SpriteSheetBundle {
                         texture_atlas: sprites.sprites["Fence"].clone(),
                         sprite: TextureAtlasSprite::new(2),
                         visibility: Visibility::Hidden,
-                        transform: Transform::from_translation(Vec3 { x: 0.0, y: 0.0, z: 0.2 }),
                         ..default()
-                    }
-                );
+                    },
+                    Depth { depth: 31.0 },
+                ));
             }).id();
         }
     }
@@ -1057,6 +1066,7 @@ impl Field {
         entity_q: &Query<&GameEntity>, 
         tile_q: &Query<&Tile>, 
     ) -> bool {
+        let mut ret_val = false;
         for column in &self.tiles {
             for tile in column {
                 if let Ok(tile_type) = tile_q.get(tile.0) {
@@ -1065,6 +1075,7 @@ impl Field {
                             if let Some(entity_id) = tile.3 {
                                 if let Ok(entity) = entity_q.get(entity_id) {
                                     if entity.entity_type == EntityType::Chicken {
+                                        ret_val = true;
                                         continue;
                                     }
                                 }
@@ -1075,6 +1086,7 @@ impl Field {
                             if let Some(entity_id) = tile.3 {
                                 if let Ok(entity) = entity_q.get(entity_id) {
                                     if entity.entity_type == EntityType::Horse {
+                                        ret_val = true;
                                         continue;
                                     }
                                 }
@@ -1085,6 +1097,7 @@ impl Field {
                             if let Some(entity_id) = tile.3 {
                                 if let Ok(entity) = entity_q.get(entity_id) {
                                     if entity.entity_type == EntityType::Pig {
+                                        ret_val = true;
                                         continue;
                                     }
                                 }
@@ -1095,6 +1108,7 @@ impl Field {
                             if let Some(entity_id) = tile.3 {
                                 if let Ok(entity) = entity_q.get(entity_id) {
                                     if entity.entity_type == EntityType::Goat {
+                                        ret_val = true;
                                         continue;
                                     }
                                 }
@@ -1105,6 +1119,7 @@ impl Field {
                             if let Some(entity_id) = tile.3 {
                                 if let Ok(entity) = entity_q.get(entity_id) {
                                     if entity.entity_type == EntityType::Wagon {
+                                        ret_val = true;
                                         continue;
                                     }
                                 }
@@ -1116,12 +1131,12 @@ impl Field {
                 }
             }
         }
-        return true;
+        return ret_val;
     }
 
     pub fn slide_entity(&mut self,
         commands: &mut Commands, 
-        entity_q: &mut Query<&mut GameEntity>, 
+        mut entity_q: &mut Query<&mut GameEntity>, 
         tile_q: &Query<&Tile>,
         sounds: &Res<Sounds>,
         sprites: &Res<Sprites>,
@@ -1142,7 +1157,12 @@ impl Field {
 
         if (startx as isize) < -xoffset || (starty as isize) < -yoffset {
             //SLID OUT OF BOUNDS
-            return false;
+            if let Some(entity_id) = self.tiles[startx][starty].3 {
+                if let Ok(mut entity) = entity_q.get_mut(entity_id) {
+                    entity.state = EntityState::Idle;
+                }
+            }
+            return true;
         }
         let x: usize = ((startx as isize) + xoffset) as usize;
         let y: usize = ((starty as isize) + yoffset) as usize;
@@ -1293,6 +1313,13 @@ impl Field {
                                     entity.state = EntityState::Special;
                                 } else {
                                     entity.state = EntityState::Idle;
+                                    if entity.entity_type == EntityType::Wagon {
+                                        if let Ok(tile) = tile_q.get(self.tiles[startx][starty].0) {
+                                            if tile.tile_type == TileType::MuddyRocks || tile.tile_type == TileType::Rocks {
+                                                return false;
+                                            }
+                                        }
+                                    }
                                     if entity.entity_type == EntityType::Goat {
                                         let tile_slam_target = (frontx as isize) > -xoffset || (fronty as isize) > -yoffset;
                                         if tile_slam_target && 
@@ -1339,6 +1366,11 @@ impl Field {
                                                                 target_entity.state = EntityState::Sliding;
                                                             }
                                                         }
+                                                        TileType::Rocks => {
+                                                            if target_entity.entity_type == EntityType::Wagon {
+                                                                return false;
+                                                            }
+                                                        }
                                                         TileType::ChickenPen => {
                                                             if target_entity.entity_type == EntityType::Chicken && target_entity.state != EntityState::Special {
                                                                 target_entity.state = EntityState::Celebrating;
@@ -1368,8 +1400,8 @@ impl Field {
                                                     }
                                                 }
                                                 if !(startx == x && starty == y) {
-                                                    self.tiles[tile_slam_target_x][tile_slam_target_y].3 = self.tiles[frontx][fronty].3.to_owned();
-                                                    self.tiles[frontx][fronty].3 = None;
+                                                    self.tiles[tile_slam_target_x][tile_slam_target_y].3 = self.tiles[startx][starty].3.to_owned();
+                                                    self.tiles[startx][starty].3 = None;
                                                 }
                                             }
                                         }
@@ -1421,82 +1453,97 @@ impl Field {
                     }
                 }
                 if let Ok(mut moving_entity) = entity_q.get_mut(entity_id) {
-                    if let Ok(tile) = tile_q.get(self.tiles[x][y].0) {
-                        //TODO: finish terrain code here
-                        match tile.tile_type {
-                            TileType::Fence => {
-                                moving_entity.state = EntityState::Idle;
-                                return true;
-                            }
-                            TileType::Mud => {
-                                //set state as muddy
-                                if moving_entity.entity_type == EntityType::Chicken && moving_entity.state == EntityState::Special {
-                                }else if moving_entity.entity_type == EntityType::Pig {
+                    if !(moving_entity.entity_type == EntityType::Chicken && moving_entity.state == EntityState::Special){
+                        if let Ok(tile) = tile_q.get(self.tiles[x][y].0) {
+                            match tile.tile_type {
+                                TileType::Fence => {
+                                    moving_entity.state = EntityState::Idle;
+                                    if entity.entity_type == EntityType::Wagon {
+                                        if let Ok(tile) = tile_q.get(self.tiles[startx][starty].0) {
+                                            if tile.tile_type == TileType::MuddyRocks || tile.tile_type == TileType::Rocks {
+                                                return false;
+                                            }
+                                        }
+                                    }
+                                    return true;
+                                }
+                                TileType::Mud => {
+                                    //set state as muddy
+                                    if moving_entity.entity_type == EntityType::Chicken && moving_entity.state == EntityState::Special {
+                                    }else if moving_entity.entity_type == EntityType::Pig {
+                                        moving_entity.state = EntityState::Walking;
+                                    }else{
+                                        moving_entity.state = EntityState::Sliding;
+                                    }
+                                }
+                                TileType::MuddyRocks => {
+                                    //set state as muddy
+                                    if moving_entity.entity_type == EntityType::Chicken && moving_entity.state == EntityState::Special {
+                                    }else if moving_entity.entity_type == EntityType::Pig {
+                                        moving_entity.state = EntityState::Walking;
+                                    }else{
+                                        moving_entity.state = EntityState::Sliding;
+                                    }
+                                }
+                                TileType::Rocks => {
+                                    if moving_entity.entity_type == EntityType::Wagon {
+                                        return false;
+                                    }
+                                }
+                                TileType::Ditch => {
+                                    if moving_entity.entity_type == EntityType::Chicken && moving_entity.state != EntityState::Special {
+                                        moving_entity.state = EntityState::Special;
+                                    } else {
+                                        return false;
+                                    }
+                                }
+                                TileType::ChickenPen => {
+                                    if moving_entity.entity_type == EntityType::Chicken && moving_entity.state != EntityState::Special {
+                                        moving_entity.state = EntityState::Celebrating;
+                                    }else{
+                                        moving_entity.state = EntityState::Walking;
+                                    }
+                                }
+                                TileType::PigPen => {
+                                    if moving_entity.entity_type == EntityType::Pig {
+                                        moving_entity.state = EntityState::Celebrating;
+                                    }else{
+                                        moving_entity.state = EntityState::Walking;
+                                    }
+                                }
+                                TileType::HorsePen => {
+                                    if moving_entity.entity_type == EntityType::Horse {
+                                        moving_entity.state = EntityState::Celebrating;
+                                    }else{
+                                        moving_entity.state = EntityState::Walking;
+                                    }
+                                }
+                                TileType::GoatPen => {
+                                    if moving_entity.entity_type == EntityType::Goat {
+                                        moving_entity.state = EntityState::Celebrating;
+                                    }else{
+                                        moving_entity.state = EntityState::Walking;
+                                    }
+                                }
+                                TileType::Corral => {
+                                    if moving_entity.entity_type == EntityType::Wagon {
+                                        moving_entity.state = EntityState::Celebrating;
+                                    }else{
+                                        moving_entity.state = EntityState::Walking;
+                                    }
+                                }
+                                _ => {
                                     moving_entity.state = EntityState::Walking;
-                                }else{
-                                    moving_entity.state = EntityState::Sliding;
                                 }
                             }
-                            TileType::MuddyRocks => {
-                                //set state as muddy
-                                if moving_entity.entity_type == EntityType::Chicken && moving_entity.state == EntityState::Special {
-                                }else if moving_entity.entity_type == EntityType::Pig {
-                                    moving_entity.state = EntityState::Walking;
-                                }else{
-                                    moving_entity.state = EntityState::Sliding;
-                                }
-                            }
-                            TileType::Ditch => {
-                                if moving_entity.entity_type == EntityType::Chicken && moving_entity.state != EntityState::Special {
-                                    moving_entity.state = EntityState::Special;
-                                }
-                            }
-                            TileType::ChickenPen => {
-                                if moving_entity.entity_type == EntityType::Chicken && moving_entity.state != EntityState::Special {
-                                    moving_entity.state = EntityState::Celebrating;
-                                }else{
-                                    moving_entity.state = EntityState::Walking;
-                                }
-                            }
-                            TileType::PigPen => {
-                                if moving_entity.entity_type == EntityType::Pig {
-                                    moving_entity.state = EntityState::Celebrating;
-                                }else{
-                                    moving_entity.state = EntityState::Walking;
-                                }
-                            }
-                            TileType::HorsePen => {
-                                if moving_entity.entity_type == EntityType::Horse {
-                                    moving_entity.state = EntityState::Celebrating;
-                                }else{
-                                    moving_entity.state = EntityState::Walking;
-                                }
-                            }
-                            TileType::GoatPen => {
-                                if moving_entity.entity_type == EntityType::Goat {
-                                    moving_entity.state = EntityState::Celebrating;
-                                }else{
-                                    moving_entity.state = EntityState::Walking;
-                                }
-                            }
-                            TileType::Corral => {
-                                if moving_entity.entity_type == EntityType::Wagon {
-                                    moving_entity.state = EntityState::Celebrating;
-                                }else{
-                                    moving_entity.state = EntityState::Walking;
-                                }
-                            }
-                            _ => {
-                                moving_entity.state = EntityState::Walking;
-                            }
+                            //self.set_entity(commands, &sprites, entity.entity_type, x, y);
+                            //self.set_entity(commands, &sprites, EntityType::None, entityx, entityy);
                         }
-                        //self.set_entity(commands, &sprites, entity.entity_type, x, y);
-                        //self.set_entity(commands, &sprites, EntityType::None, entityx, entityy);
-                    }
-                    if entity.state != EntityState::Sliding {
-                        moving_entity.target_location = target_location;
-                        if moving_entity.target_location.x == moving_entity.location.x && moving_entity.target_location.y == moving_entity.location.y {
-                            moving_entity.state = EntityState::Idle;
+                        if entity.state != EntityState::Sliding {
+                            moving_entity.target_location = target_location;
+                            if moving_entity.target_location.x == moving_entity.location.x && moving_entity.target_location.y == moving_entity.location.y {
+                                moving_entity.state = EntityState::Idle;
+                            }
                         }
                     }
 
@@ -1589,10 +1636,10 @@ impl Field {
                     moving_entity.location.x = x;
                     moving_entity.location.y = y;
                     if !(startx == x && starty == y) {
-                        if self.tiles[x][y].4.is_some() {
-                            return false;
-                        }
                         if moving_entity.entity_type == EntityType::Chicken && moving_entity.state == EntityState::Special {
+                            if self.tiles[x][y].4.is_some() {
+                                return false;
+                            }
                             self.tiles[x][y].4 = self.tiles[startx][starty].3.to_owned();
                             self.tiles[startx][starty].3 = None;
                         }else{
@@ -1654,6 +1701,11 @@ impl Field {
                                                         slam_entity.state = EntityState::Sliding;
                                                     }
                                                 }
+                                                TileType::Rocks => {
+                                                    if slam_entity.entity_type == EntityType::Wagon {
+                                                        return false;
+                                                    }
+                                                }
                                                 TileType::ChickenPen => {
                                                     if slam_entity.entity_type == EntityType::Chicken && slam_entity.state != EntityState::Special {
                                                         slam_entity.state = EntityState::Celebrating;
@@ -1703,6 +1755,14 @@ impl Field {
                                     pull_entity.location.y = starty;
                                     self.tiles[startx][starty].3 = self.tiles[backx][backy].3.to_owned();
                                     self.tiles[backx][backy].3 = None;
+                                    if let Ok(tile) = tile_q.get(self.tiles[startx][starty].0) {
+                                        if pull_entity.entity_type == EntityType::Wagon && tile.tile_type == TileType::Rocks {
+                                            return false;
+                                        }
+                                        if tile.tile_type == TileType::Mud || tile.tile_type == TileType::MuddyRocks {
+                                            pull_entity.state = EntityState::Sliding;
+                                        }
+                                    }
                                 } else {
                                     println!("PULL FAILED");
                                 }
@@ -1711,6 +1771,9 @@ impl Field {
                     }
                 }
             }
+        }
+        else if entity.entity_type == EntityType::Chicken && entity.state == EntityState::Special {
+            return false;
         }
         return true;
     }
@@ -1878,41 +1941,43 @@ pub fn mouse_controls(
                         _ => {""}
                     }.to_owned();
                 }
-                if buttons.just_pressed(MouseButton::Left) && !cursor_holding {
-                    match field.get_tile_type(tile_pos_x, tile_pos_y, &q_tile) {
-                        Some(TileType::Grass) => {field.set_tile(&mut commands, &sprites, TileType::Fence, tile_pos_x, tile_pos_y);}
-                        Some(TileType::Fence) => {field.set_tile(&mut commands, &sprites, TileType::Mud, tile_pos_x, tile_pos_y);}
-                        Some(TileType::Mud) => {field.set_tile(&mut commands, &sprites, TileType::Rocks, tile_pos_x, tile_pos_y);}
-                        Some(TileType::Rocks) => {field.set_tile(&mut commands, &sprites, TileType::MuddyRocks, tile_pos_x, tile_pos_y);}
-                        Some(TileType::MuddyRocks) => {field.set_tile(&mut commands, &sprites, TileType::Corral, tile_pos_x, tile_pos_y);}
-                        Some(TileType::Corral) => {field.set_tile(&mut commands, &sprites, TileType::ChickenPen, tile_pos_x, tile_pos_y);}
-                        Some(TileType::ChickenPen) => {field.set_tile(&mut commands, &sprites, TileType::HorsePen, tile_pos_x, tile_pos_y);}
-                        Some(TileType::HorsePen) => {field.set_tile(&mut commands, &sprites, TileType::PigPen, tile_pos_x, tile_pos_y);}
-                        Some(TileType::PigPen) => {field.set_tile(&mut commands, &sprites, TileType::GoatPen, tile_pos_x, tile_pos_y);}
-                        Some(TileType::GoatPen) => {field.set_tile(&mut commands, &sprites, TileType::Ditch, tile_pos_x, tile_pos_y);}
-                        Some(TileType::Ditch) => {field.set_tile(&mut commands, &sprites, TileType::Grass, tile_pos_x, tile_pos_y);}
-                        _ => {}
+                if field.editor_mode {
+                    if buttons.just_pressed(MouseButton::Left) && !cursor_holding {
+                        match field.get_tile_type(tile_pos_x, tile_pos_y, &q_tile) {
+                            Some(TileType::Grass) => {field.set_tile(&mut commands, &sprites, TileType::Fence, tile_pos_x, tile_pos_y);}
+                            Some(TileType::Fence) => {field.set_tile(&mut commands, &sprites, TileType::Mud, tile_pos_x, tile_pos_y);}
+                            Some(TileType::Mud) => {field.set_tile(&mut commands, &sprites, TileType::Rocks, tile_pos_x, tile_pos_y);}
+                            Some(TileType::Rocks) => {field.set_tile(&mut commands, &sprites, TileType::MuddyRocks, tile_pos_x, tile_pos_y);}
+                            Some(TileType::MuddyRocks) => {field.set_tile(&mut commands, &sprites, TileType::Corral, tile_pos_x, tile_pos_y);}
+                            Some(TileType::Corral) => {field.set_tile(&mut commands, &sprites, TileType::ChickenPen, tile_pos_x, tile_pos_y);}
+                            Some(TileType::ChickenPen) => {field.set_tile(&mut commands, &sprites, TileType::HorsePen, tile_pos_x, tile_pos_y);}
+                            Some(TileType::HorsePen) => {field.set_tile(&mut commands, &sprites, TileType::PigPen, tile_pos_x, tile_pos_y);}
+                            Some(TileType::PigPen) => {field.set_tile(&mut commands, &sprites, TileType::GoatPen, tile_pos_x, tile_pos_y);}
+                            Some(TileType::GoatPen) => {field.set_tile(&mut commands, &sprites, TileType::Ditch, tile_pos_x, tile_pos_y);}
+                            Some(TileType::Ditch) => {field.set_tile(&mut commands, &sprites, TileType::Grass, tile_pos_x, tile_pos_y);}
+                            _ => {}
+                        }
                     }
-                }
-                if buttons.just_pressed(MouseButton::Right) {
-                    match field.get_entity_type(tile_pos_x, tile_pos_y, &q_entity) {
-                        Some(EntityType::Chicken) => {field.set_entity(&mut commands, &sprites, EntityType::Horse, tile_pos_x, tile_pos_y);}
-                        Some(EntityType::Horse) => {field.set_entity(&mut commands, &sprites, EntityType::Pig, tile_pos_x, tile_pos_y);}
-                        Some(EntityType::Pig) => {field.set_entity(&mut commands, &sprites, EntityType::Goat, tile_pos_x, tile_pos_y);}
-                        Some(EntityType::Goat) => {field.set_entity(&mut commands, &sprites, EntityType::Wagon, tile_pos_x, tile_pos_y);}
-                        Some(EntityType::Wagon) => {field.set_entity(&mut commands, &sprites, EntityType::ChickenFood, tile_pos_x, tile_pos_y);}
-                        Some(EntityType::ChickenFood) => {field.set_entity(&mut commands, &sprites, EntityType::HorseFood, tile_pos_x, tile_pos_y);}
-                        Some(EntityType::HorseFood) => {field.set_entity(&mut commands, &sprites, EntityType::PigFood, tile_pos_x, tile_pos_y);}
-                        Some(EntityType::PigFood) => {field.set_entity(&mut commands, &sprites, EntityType::AllFood, tile_pos_x, tile_pos_y);}
-                        Some(EntityType::AllFood) => {field.set_entity(&mut commands, &sprites, EntityType::None, tile_pos_x, tile_pos_y);}
-                        Some(EntityType::WagonFood) => {field.set_entity(&mut commands, &sprites, EntityType::None, tile_pos_x, tile_pos_y);}
-                        _ => {field.set_entity(&mut commands, &sprites, EntityType::Chicken, tile_pos_x, tile_pos_y);}
+                    if buttons.just_pressed(MouseButton::Right) {
+                        match field.get_entity_type(tile_pos_x, tile_pos_y, &q_entity) {
+                            Some(EntityType::Chicken) => {field.set_entity(&mut commands, &sprites, EntityType::Horse, tile_pos_x, tile_pos_y);}
+                            Some(EntityType::Horse) => {field.set_entity(&mut commands, &sprites, EntityType::Pig, tile_pos_x, tile_pos_y);}
+                            Some(EntityType::Pig) => {field.set_entity(&mut commands, &sprites, EntityType::Goat, tile_pos_x, tile_pos_y);}
+                            Some(EntityType::Goat) => {field.set_entity(&mut commands, &sprites, EntityType::Wagon, tile_pos_x, tile_pos_y);}
+                            Some(EntityType::Wagon) => {field.set_entity(&mut commands, &sprites, EntityType::ChickenFood, tile_pos_x, tile_pos_y);}
+                            Some(EntityType::ChickenFood) => {field.set_entity(&mut commands, &sprites, EntityType::HorseFood, tile_pos_x, tile_pos_y);}
+                            Some(EntityType::HorseFood) => {field.set_entity(&mut commands, &sprites, EntityType::PigFood, tile_pos_x, tile_pos_y);}
+                            Some(EntityType::PigFood) => {field.set_entity(&mut commands, &sprites, EntityType::AllFood, tile_pos_x, tile_pos_y);}
+                            Some(EntityType::AllFood) => {field.set_entity(&mut commands, &sprites, EntityType::None, tile_pos_x, tile_pos_y);}
+                            Some(EntityType::WagonFood) => {field.set_entity(&mut commands, &sprites, EntityType::None, tile_pos_x, tile_pos_y);}
+                            _ => {field.set_entity(&mut commands, &sprites, EntityType::Chicken, tile_pos_x, tile_pos_y);}
+                        }
                     }
                 }
                 
                 if let Ok(mut cursor) = q_transform.get_mut(field.cursor) {
                     cursor.scale = Vec3::splat(ui_scale.scale as f32);
-                    cursor.translation = Vec3{ x: (tile.x.floor() + 0.5) * TILE_SIZE * cursor.scale.x, y: tile.y.round() * TILE_SIZE * cursor.scale.y, z:10.0 };
+                    cursor.translation = Vec3{ x: (tile.x.floor() + 0.5) * TILE_SIZE * cursor.scale.x, y: tile.y.round() * TILE_SIZE * cursor.scale.y, z: 100.0 };
                 }
             }
         }
@@ -2001,6 +2066,11 @@ pub fn saving_system(
                         println!("Level Loading Failed! Error: {:?}", error);
                     }
                 }else  {
+                    if let Some(editor) = saving.editor_mode {
+                        field.editor_mode = editor;
+                    } else {
+                        field.editor_mode = false;
+                    }
                     if let Some(save) = savefiles.get(&levels.levels[&saving.save]) {
                         simulation.rounds = 1;
                         for savetile in &save.tiles {
