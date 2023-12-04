@@ -2,6 +2,7 @@ use crate::*;
 
 use bevy::reflect::TypeUuid;
 use bevy::{prelude::*, reflect::TypePath};
+use bevy::audio::{Volume, VolumeLevel};
 use bevy::window::PrimaryWindow;
 
 use serde::{Deserialize, Serialize};
@@ -2191,6 +2192,7 @@ pub fn saving_system(
                     commands.spawn((AudioBundle {
                         settings: PlaybackSettings{
                             mode: PlaybackMode::Loop,
+                            volume: Volume::Absolute(VolumeLevel::new(0.75)),
                             ..default()
                         },
                         source: music.songs[song].to_owned(),

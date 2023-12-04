@@ -1,6 +1,7 @@
 use crate::*;
 
 use bevy::prelude::*;
+use bevy::audio::{Volume, VolumeLevel};
 
 
 #[derive(Component)]
@@ -135,6 +136,7 @@ pub fn menu_setup(mut commands: Commands, asset_server: Res<AssetServer>, ui_ima
     commands.spawn((AudioBundle {
         settings: PlaybackSettings{
             mode: PlaybackMode::Loop,
+            volume: Volume::Absolute(VolumeLevel::new(0.75)),
             ..default()
         },
         source: music.songs["Song 1"].to_owned(),
