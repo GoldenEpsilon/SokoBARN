@@ -331,7 +331,7 @@ fn setup(
                 name: "Night 3".to_owned(),
                 id: "Levels/Night-3.skb".to_owned(),
                 weather: WeatherType::RainyNight,
-                song: "Rain 1".to_owned(),
+                song: "Saga".to_owned(),
                 par: 18,
                 author_par: 15,
                 ..default()
@@ -394,6 +394,7 @@ fn setup(
     music.insert("Song 3".to_owned(), asset_server.load("Music/sokobarn_loop3.ogg"));
     music.insert("Rain 1".to_owned(), asset_server.load("Music/sokobarn_rain_loop1.ogg"));
     music.insert("Rain 2".to_owned(), asset_server.load("Music/sokobarn_rain_loop2.ogg"));
+    music.insert("Saga".to_owned(), asset_server.load("Music/sokobarn_saga.ogg"));
     commands.insert_resource(GameMusic { songs: music });
 
     
