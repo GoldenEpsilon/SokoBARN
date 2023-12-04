@@ -235,7 +235,10 @@ pub struct Field {
     pub tiles: Vec<Vec<(Entity, Option<Entity>, Option<Entity>, Option<Entity>, Option<Entity>, Option<Entity>)>>,
     pub cursor: Entity,
     pub simulate_timer: PlayModeTick,
-    pub editor_mode: bool
+    pub editor_mode: bool,
+    pub level_id: String,
+    pub par: usize,
+    pub author_par: usize,
 }
 
 impl Field {
@@ -274,7 +277,7 @@ impl Field {
                 sprite: TextureAtlasSprite::new(4),
                 ..default()
             }).id();
-        let field = Field { tiles, cursor, simulate_timer: PlayModeTick(Timer::from_seconds(TICK_SPEED, TimerMode::Repeating)), editor_mode: false };
+        let field = Field { tiles, cursor, simulate_timer: PlayModeTick(Timer::from_seconds(TICK_SPEED, TimerMode::Repeating)), editor_mode: false, level_id: "".to_owned(), par: 0, author_par: 0 };
         return field;
     }
 
@@ -939,6 +942,7 @@ impl Field {
         }
         x = animalx;
         y = animaly + 1;
+        fly = canfly;
         while self.can_get_tile(x, y){
             let mut has_flown = false;
             if let Ok(tile) = tile_q.get(self.tiles[x][y].0) {
@@ -991,6 +995,7 @@ impl Field {
         }
         if animalx > 0 {x = animalx - 1;}
         y = animaly;
+        fly = canfly;
         while self.can_get_tile(x, y){
             let mut has_flown = false;
             if let Ok(tile) = tile_q.get(self.tiles[x][y].0) {
@@ -1044,6 +1049,7 @@ impl Field {
         }
         x = animalx;
         if animaly > 0 {y = animaly - 1;}
+        fly = canfly;
         while self.can_get_tile(x, y){
             let mut has_flown = false;
             if let Ok(tile) = tile_q.get(self.tiles[x][y].0) {
@@ -1373,10 +1379,17 @@ impl Field {
                         }
                     }
                     if let Some(food_entity_id) = self.tiles[x][y].2 {
+                        let mut eating = false;
                         if let Ok(food_entity) = entity_q.get(food_entity_id) {
                             if food_entity.entity_type == EntityType::AllFood || food_entity.entity_type == EntityType::ChickenFood {
                                 commands.entity(food_entity_id).despawn_recursive();
                                 self.tiles[x][y].2 = None;
+                                eating = true;
+                            }
+                        }
+                        if eating {
+                            if let Ok(mut moving_entity) = entity_q.get_mut(entity_id) {
+                                moving_entity.state = EntityState::Eating;
                             }
                         }
                     }
@@ -1401,7 +1414,7 @@ impl Field {
                                             }
                                         }
                                     }
-                                    if entity.entity_type == EntityType::Goat {
+                                    if entity.entity_type == EntityType::Goat && target_entity.state != EntityState::Celebrating {
                                         let tile_slam_target = (frontx as isize) > -xoffset || (fronty as isize) > -yoffset;
                                         if tile_slam_target && 
                                             self.can_get_tile(((frontx as isize) + xoffset) as usize, ((fronty as isize) + yoffset) as usize) {
@@ -1491,39 +1504,46 @@ impl Field {
                         }
                     }
                 }
+                let mut eating = false;
                 if let Some(food_entity_id) = self.tiles[x][y].2 {
                     if let Ok(food_entity) = entity_q.get(food_entity_id) {
                         if entity.entity_type != EntityType::Wagon && food_entity.entity_type == EntityType::AllFood {
                             commands.entity(food_entity_id).despawn_recursive();
                             self.tiles[x][y].2 = None;
+                            eating = true;
                         } else {
                             match entity.entity_type {
                                 EntityType::Chicken => {
                                     if food_entity.entity_type == EntityType::ChickenFood {
                                         commands.entity(food_entity_id).despawn_recursive();
                                         self.tiles[x][y].2 = None;
+                                        eating = true;
                                     }
                                 }
                                 EntityType::Pig => {
                                     if food_entity.entity_type == EntityType::PigFood {
                                         commands.entity(food_entity_id).despawn_recursive();
                                         self.tiles[x][y].2 = None;
+                                        eating = true;
                                     }
                                 }
                                 EntityType::Horse => {
                                     if food_entity.entity_type == EntityType::HorseFood {
                                         commands.entity(food_entity_id).despawn_recursive();
                                         self.tiles[x][y].2 = None;
+                                        eating = true;
                                     }
                                 }
                                 EntityType::Goat => {
                                     commands.entity(food_entity_id).despawn_recursive();
                                     self.tiles[x][y].2 = None;
+                                    eating = true;
                                 }
                                 EntityType::Wagon => {
                                     if food_entity.entity_type == EntityType::WagonFood {
                                         commands.entity(food_entity_id).despawn_recursive();
                                         self.tiles[x][y].2 = None;
+                                        eating = true;
                                     }
                                 }
                                 _ => {}
@@ -1626,6 +1646,9 @@ impl Field {
                             moving_entity.target_location = target_location;
                             if moving_entity.target_location.x == moving_entity.location.x && moving_entity.target_location.y == moving_entity.location.y {
                                 moving_entity.state = EntityState::Idle;
+                            }
+                            if eating && entity.state != EntityState::Special {
+                                moving_entity.state = EntityState::Eating;
                             }
                         }
                     }
@@ -1737,7 +1760,7 @@ impl Field {
                     if let Some(slam_entity_id) = self.tiles[frontx][fronty].3 {
                         println!("CHECKING FOR SLAM");
                         if let Ok([mut entity, mut slam_entity]) = entity_q.get_many_mut([entity_id, slam_entity_id]) {
-                            if entity.entity_type == EntityType::Goat {
+                            if entity.entity_type == EntityType::Goat && slam_entity.state != EntityState::Celebrating {
                                 println!("TRYING TO SLAM");
                                 let tile_slam_target = (frontx as isize) > -xoffset*2 || (fronty as isize) > -yoffset*2;
                                 if tile_slam_target && 
@@ -1828,7 +1851,7 @@ impl Field {
                 if tile_in_back && self.can_get_tile(backx, backy) {
                     if let Some(pull_entity_id) = self.tiles[backx][backy].3 {
                         if let Ok([entity, mut pull_entity]) = entity_q.get_many_mut([entity_id, pull_entity_id]) {
-                            if entity.entity_type == EntityType::Horse && pull_entity.entity_type == EntityType::Wagon {
+                            if entity.entity_type == EntityType::Horse && pull_entity.entity_type == EntityType::Wagon && pull_entity.state != EntityState::Celebrating {
                                 println!("TRYING TO PULL");
                                 if self.tiles[startx][starty].3.is_none() {
                                     pull_entity.last_direction = move_direction;
@@ -2018,8 +2041,8 @@ pub fn mouse_controls(
                                     EntityType::Goat => {"Goat: Can SLAM animals and carts over all sorts of things!"}
                                     EntityType::Wagon => {"Cart: Help the cart get to its goal!"}
                                     EntityType::ChickenFood => {"Seeds: Chickens prefer to eat these, and Goats will eat it."}
-                                    EntityType::PigFood => {"Apples: Horses prefer to eat these, and Goats will eat it"}
-                                    EntityType::HorseFood => {"Carrots: Pigs prefer to eat these, and Goats will eat it"}
+                                    EntityType::HorseFood => {"Apples: Horses prefer to eat these, and Goats will eat it"}
+                                    EntityType::PigFood => {"Carrots: Pigs prefer to eat these, and Goats will eat it"}
                                     EntityType::AllFood => {"Mixed Food: Goats prefer to eat this, but any Animal will eat it."}
                                     EntityType::WagonFood => {"Cart Chow: Carts will... eat it?????"}
                                     _ => {""}
@@ -2090,16 +2113,18 @@ pub fn mouse_controls(
 pub fn saving_system(
     mut commands: Commands, 
     sprites: Res<Sprites>,
+    music: Res<GameMusic>,
     levels: Res<Levels>,
     savefiles: Res<Assets<SaveFile>>,
     mut field: ResMut<Field>, 
     q_tile: Query<&Tile>,
     q_entity: Query<&GameEntity>,
-    q_flag: Query<&Flag>,
+    q_flag: Query<&Flag>, 
+    music_player: Query<Entity, With<MusicPlayer>>,    
     mut simulation: ResMut<SimulateRes>,
     mut saving: ResMut<SaveRes>,
     mut round_counter_q: Query<&mut Text, With<RoundCounter>>,
-    mut weather: ResMut<Weather>,){
+    mut weather: ResMut<Weather>){
     if !simulation.simulating {
         match saving.saving {
             SaveStage::Saving => {
@@ -2159,6 +2184,22 @@ pub fn saving_system(
                 if let Some(loaded_weather) = saving.weather {
                     weather.weather = loaded_weather;
                 }
+                if let Some(song) = &saving.song {
+                    for player in &music_player {
+                        commands.entity(player).despawn();
+                    }
+                    commands.spawn((AudioBundle {
+                        settings: PlaybackSettings{
+                            mode: PlaybackMode::Loop,
+                            ..default()
+                        },
+                        source: music.songs[song].to_owned(),
+                        ..default()
+                    }, MusicPlayer));
+                }
+                field.level_id = saving.save.to_owned();
+                field.par = saving.par;
+                field.author_par = saving.author_par;
                 if let Ok(save_string) = fs::read_to_string(saving.save.to_owned()) {
                     if let Ok(save) = serde_json::from_str::<SaveFile>(&save_string) {
                         simulation.rounds = 0;
@@ -2305,5 +2346,12 @@ pub fn saving_system(
         if let Ok(mut round_counter) = round_counter_q.get_single_mut() {
             round_counter.sections[0].value = format!("Round {}", simulation.rounds);
         }
+    }
+}
+pub fn par_text_system(
+    field: ResMut<Field>,
+    mut par_q: Query<&mut Text, With<ParText>>,){
+    for mut par_text in &mut par_q {
+        par_text.sections[0].value = format!("PAR: {}", field.par);
     }
 }

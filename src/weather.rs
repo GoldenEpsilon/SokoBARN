@@ -15,11 +15,13 @@ pub struct Weather {
 #[derive(PartialEq)]
 #[derive(Clone, Copy)]
 #[derive(Default)]
+#[allow(dead_code)]
 pub enum WeatherType {
     #[default] Sunny,
     Cloudy,
     Raining,
     Night,
+    RainyNight,
     Thunder
 }
 
@@ -47,7 +49,7 @@ pub fn weather_system(mut commands: Commands,
                 commands.spawn((SpriteSheetBundle {
                     texture_atlas: sprites.sprites["Rain"].clone(),
                     sprite: TextureAtlasSprite::new(0),
-                    transform: Transform::from_xyz(0.0, 0.0, 100.0),
+                    transform: Transform::from_xyz(0.0, 0.0, 110.0),
                     ..default()
                 }, Raindrop(Timer::from_seconds(((rng.next_u32() % 600) as f32) / 100.0, TimerMode::Once)), 
                 Scaling { position: Vec2{ x: ((rng.next_u32() % 1600) as f32) / 100.0, y: 10.0 + ((((rng.next_u32() % 200) as i32) - 100) as f32) / 100.0 } }));
@@ -77,8 +79,45 @@ pub fn weather_system(mut commands: Commands,
                 }
             }
 
-            for (raindrop, mut raindrop_sprite, mut raindrop_position, mut raindrop_timer) in &mut rain_q {
+            for (raindrop, _, _, _) in &rain_q {
                 commands.entity(raindrop).despawn();
+            }
+        }
+        WeatherType::RainyNight => {
+            if let Some(overlay_id) = weather.overlay {
+                if let Ok(mut overlay) = sprite_q.get_mut(overlay_id) {
+                    overlay.color = Color::rgba(0.025, 0.025, 0.15, 0.75);
+                }
+            }
+            
+            weather.raindrops += time.delta().as_micros();
+            let mut raindrops = weather.raindrops / weather.raindrop_count;
+            weather.raindrops = weather.raindrops % weather.raindrop_count;
+            while raindrops > 0 {
+                commands.spawn((SpriteSheetBundle {
+                    texture_atlas: sprites.sprites["Rain"].clone(),
+                    sprite: TextureAtlasSprite::new(0),
+                    transform: Transform::from_xyz(0.0, 0.0, 110.0),
+                    ..default()
+                }, Raindrop(Timer::from_seconds(((rng.next_u32() % 600) as f32) / 100.0, TimerMode::Once)), 
+                Scaling { position: Vec2{ x: ((rng.next_u32() % 1600) as f32) / 100.0, y: 10.0 + ((((rng.next_u32() % 200) as i32) - 100) as f32) / 100.0 } }));
+                raindrops -= 1;
+            }
+
+            for (raindrop, mut raindrop_sprite, mut raindrop_position, mut raindrop_timer) in &mut rain_q {
+                if raindrop_sprite.index == 0 {
+                    raindrop_position.position += Vec2 { x:-0.02, y:-0.15 };
+                }
+                raindrop_timer.tick(time.delta());
+                if raindrop_timer.just_finished() {
+                    if raindrop_sprite.index == 0 {
+                        *raindrop_timer = Raindrop(Timer::from_seconds(ANIMATION_SPEED, TimerMode::Repeating));
+                    }
+                    raindrop_sprite.index += 1;
+                    if raindrop_sprite.index >= 4 {
+                        commands.entity(raindrop).despawn();
+                    }
+                }
             }
         }
         _ => {
@@ -88,7 +127,7 @@ pub fn weather_system(mut commands: Commands,
                 }
             }
 
-            for (raindrop, mut raindrop_sprite, mut raindrop_position, mut raindrop_timer) in &mut rain_q {
+            for (raindrop, _, _, _) in &rain_q {
                 commands.entity(raindrop).despawn();
             }
         }
@@ -96,9 +135,13 @@ pub fn weather_system(mut commands: Commands,
     if weather.overlay.is_none() {
         weather.overlay = Some(
         commands.spawn((
-            AtlasImageBundle {
-                texture_atlas: sprites.sprites["Working"].to_owned(),
-                texture_atlas_image: UiTextureAtlasImage{index:0,..default()},
+            SpriteBundle {
+                sprite: Sprite {
+                    color: Color::rgb(0.05, 0.05, 0.25),
+                    custom_size: Some(Vec2::new(32.0*14.0, 32.0*8.0)),
+                    ..default()
+                },
+                transform: Transform::from_xyz(0.0, 0.0, 90.0),
                 ..default()
             },
             Scaling {

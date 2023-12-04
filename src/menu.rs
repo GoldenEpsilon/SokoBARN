@@ -26,6 +26,15 @@ pub struct Description{
 #[derive(Component)]
 pub struct RoundCounter;
 
+#[derive(Component)]
+pub struct TutorialButton;
+
+#[derive(Component)]
+pub struct CreditsButton;
+
+#[derive(Component)]
+pub struct ParText;
+
 #[derive(Resource)]
 pub struct MenuData {
     pub button_entities: Vec<Entity>,
@@ -52,7 +61,8 @@ pub struct LevelData {
     pub record: usize,
     pub unlock_req: usize,
     pub weather: WeatherType,
-    pub editor: bool
+    pub editor: bool,
+    pub song: String
 }
 
 #[derive(Resource)]
@@ -69,6 +79,9 @@ pub struct SaveRes {
     pub quicksaves: Vec<(String, SimulateRes)>,
     pub editor_mode: Option<bool>,
     pub weather: Option<WeatherType>,
+    pub song: Option<String>,
+    pub par: usize,
+    pub author_par: usize,
 }
 
 #[derive(PartialEq)]
@@ -91,6 +104,7 @@ pub enum SaveStage{
 
 #[derive(PartialEq)]
 #[derive(Default)]
+#[allow(dead_code)]
 pub enum ButtonEffect{
     #[default] None,
     PrevWorld,
@@ -108,9 +122,24 @@ pub enum ButtonEffect{
     Undo,
     Pause,
     UnPause,
+    EndTutorial,
+    Credits,
+    ExitCredits,
 }
 
-pub fn menu_setup(mut commands: Commands, asset_server: Res<AssetServer>, ui_images: Res<UIImages>, mut keyart_q: Query<&mut Visibility, With<KeyArt>>) {
+pub fn menu_setup(mut commands: Commands, asset_server: Res<AssetServer>, ui_images: Res<UIImages>, music: Res<GameMusic>, music_player: Query<Entity, With<MusicPlayer>>, mut keyart_q: Query<&mut Visibility, With<KeyArt>>) {
+
+    for player in &music_player {
+        commands.entity(player).despawn();
+    }
+    commands.spawn((AudioBundle {
+        settings: PlaybackSettings{
+            mode: PlaybackMode::Loop,
+            ..default()
+        },
+        source: music.songs["Song 1"].to_owned(),
+        ..default()
+    }, MusicPlayer));
 
     if let Ok(mut visibility) = keyart_q.get_single_mut() {
         *visibility = Visibility::Visible;
@@ -205,13 +234,14 @@ pub fn menu_setup(mut commands: Commands, asset_server: Res<AssetServer>, ui_ima
                     justify_content: JustifyContent::Center,
                     // vertically center child text
                     align_items: AlignItems::Center,
+                    margin: UiRect::bottom(Val::Px(10.0)),
                     ..default()
                 },
                 background_color: Color::NONE.into(),
                 ..default()
             }, 
             MenuButton{
-                button_effect: ButtonEffect::Quit,
+                button_effect: ButtonEffect::Credits,
                 pickup_object: EntityType::None,
                 level: None,
                 hovering: false, 
@@ -235,11 +265,57 @@ pub fn menu_setup(mut commands: Commands, asset_server: Res<AssetServer>, ui_ima
                 })
                 .with_children(|parent| {
                     parent.spawn(TextBundle::from_section(
-                        "Quit",
+                        "Credits",
                         text_style.to_owned()
                     ));
                 });
             });
+            if !ONLINE_BUILD {
+                parent.spawn((ButtonBundle {
+                    style: Style {
+                        width: Val::Px(160.0),
+                        height: Val::Px(32.0),
+                        //border: UiRect::all(Val::Px(5.0)),
+                        // horizontally center child text
+                        justify_content: JustifyContent::Center,
+                        // vertically center child text
+                        align_items: AlignItems::Center,
+                        ..default()
+                    },
+                    background_color: Color::NONE.into(),
+                    ..default()
+                }, 
+                MenuButton{
+                    button_effect: ButtonEffect::Quit,
+                    pickup_object: EntityType::None,
+                    level: None,
+                    hovering: false, 
+                    hover_time: 0.0,
+                    ..default()
+                }))
+                .with_children(|parent| {
+                    parent.spawn(ImageBundle {
+                        image: UiImage::new(image.clone()),
+                        style: Style {
+                            width: Val::Percent(100.0),
+                            height: Val::Percent(100.0),
+                            // horizontally center child text
+                            justify_content: JustifyContent::Center,
+                            // vertically center child text
+                            align_items: AlignItems::Center,
+                            ..Default::default()
+                        },
+                        background_color: Color::WHITE.into(),
+                        ..Default::default()
+                    })
+                    .with_children(|parent| {
+                        parent.spawn(TextBundle::from_section(
+                            "Quit",
+                            text_style.to_owned()
+                        ));
+                    });
+                });
+            }
         }).id()];
     commands.insert_resource(MenuData { button_entities });
 }
@@ -249,6 +325,7 @@ pub fn level_select_setup(
     asset_server: Res<AssetServer>, 
     ui_images: Res<UIImages>, 
     mut menu_data: ResMut<MenuData>,
+    medals: Res<Medals>,
     sprites: Res<Sprites>,
     world_data: Res<WorldList>) {
     let text_style = TextStyle {
@@ -260,6 +337,61 @@ pub fn level_select_setup(
     let image = ui_images.sprites["UISign"].to_owned();
     
     let world = &world_data.worlds[world_data.index];
+
+    let backid = 
+    {
+        let mut back = commands.spawn((ButtonBundle {
+            style: Style {
+                width: Val::Px(160.0),
+                height: Val::Px(32.0),
+                //border: UiRect::all(Val::Px(5.0)),
+                // horizontally center child text
+                justify_content: JustifyContent::Center,
+                // vertically center child text
+                align_items: AlignItems::Center,
+                position_type: PositionType::Absolute,
+                left: Val::Percent(1.0),
+                top: Val::Percent(8.0),
+                ..default()
+            },
+            background_color: Color::NONE.into(),
+            ..default()
+        }, 
+        MenuButton{
+            button_effect: ButtonEffect::MainMenu,
+            pickup_object: EntityType::None,
+            level: None,
+            hovering: false, 
+            hover_time: 0.0,
+            ..default()
+        }));
+        back.with_children(|parent| {
+            parent.spawn(ImageBundle {
+                image: UiImage::new(image.clone()),
+                style: Style {
+                    width: Val::Percent(100.0),
+                    height: Val::Percent(100.0),
+                    justify_content: JustifyContent::Center,
+                    align_items: AlignItems::Center,
+                    ..Default::default()
+                },
+                background_color: Color::WHITE.into(),
+                ..Default::default()
+            })
+            .with_children(|parent| {
+                parent.spawn(AtlasImageBundle {
+                    texture_atlas: sprites.sprites["Arrow"].to_owned(),
+                    texture_atlas_image: UiTextureAtlasImage{index:3,..default()},
+                    style: Style {
+                        position_type: PositionType::Absolute,
+                        ..default()
+                    },
+                    ..default()
+                });
+            });
+        });
+        back.id()
+    };
 
     let mut menu = commands.spawn(NodeBundle {
         style: Style {
@@ -414,7 +546,7 @@ pub fn level_select_setup(
                     ));
                     parent.spawn(AtlasImageBundle {
                         texture_atlas: sprites.sprites["Medals"].to_owned(),
-                        texture_atlas_image: UiTextureAtlasImage{index:0,..default()},
+                        texture_atlas_image: UiTextureAtlasImage{index:medals.medals[&level.id],..default()},
                         ..default()
                     });
                 });
@@ -474,10 +606,10 @@ pub fn level_select_setup(
         });
     });
 
-    menu_data.button_entities = vec![menu.id()];
+    menu_data.button_entities = vec![backid, menu.id()];
 }
 
-pub fn pause_menu_setup(mut commands: Commands, asset_server: Res<AssetServer>, ui_images: Res<UIImages>, field: Res<Field>, mut pause_menu_data: ResMut<PauseMenuData>) {
+pub fn pause_menu_setup(mut commands: Commands, asset_server: Res<AssetServer>, ui_images: Res<UIImages>, sprites: Res<Sprites>, field: Res<Field>, simulating: Res<SimulateRes>, mut pause_menu_data: ResMut<PauseMenuData>) {
     let text_style = TextStyle {
         font: asset_server.load("Fonts/MessyThicc.ttf"),
         font_size: 20.0,
@@ -506,6 +638,67 @@ pub fn pause_menu_setup(mut commands: Commands, asset_server: Res<AssetServer>, 
         }
         )
         .with_children(|parent| {
+            if pause_menu_data.mode == PauseMenuMode::Lose || pause_menu_data.mode == PauseMenuMode::Win {
+                parent.spawn((ButtonBundle {
+                    style: Style {
+                        width: Val::Px(160.0),
+                        height: Val::Px(32.0),
+                        //border: UiRect::all(Val::Px(5.0)),
+                        // horizontally center child text
+                        justify_content: JustifyContent::Center,
+                        // vertically center child text
+                        align_items: AlignItems::Center,
+                        margin: UiRect::bottom(Val::Px(10.0)),
+                        ..default()
+                    },
+                    background_color: Color::NONE.into(),
+                    ..default()
+                }, 
+                MenuButton{
+                    button_effect: ButtonEffect::None,
+                    pickup_object: EntityType::None,
+                    level: None,
+                    hovering: false, 
+                    hover_time: 0.0,
+                    ..default()
+                }))
+                .with_children(|parent| {
+                    parent.spawn(ImageBundle {
+                        image: UiImage::new(image.clone()),
+                        style: Style {
+                            width: Val::Percent(100.0),
+                            height: Val::Percent(100.0),
+                            // horizontally center child text
+                            justify_content: JustifyContent::Center,
+                            // vertically center child text
+                            align_items: AlignItems::Center,
+                            margin: UiRect::bottom(Val::Px(10.0)),
+                            ..Default::default()
+                        },
+                        background_color: Color::WHITE.into(),
+                        ..Default::default()
+                    })
+                    .with_children(|parent| {
+                        if pause_menu_data.mode == PauseMenuMode::Win {
+                            parent.spawn(TextBundle::from_section(
+                                "You Win!",
+                                text_style.to_owned()
+                            ));
+                            parent.spawn(AtlasImageBundle {
+                                texture_atlas: sprites.sprites["Medals"].to_owned(),
+                                texture_atlas_image: UiTextureAtlasImage{index: if simulating.rounds <= field.author_par {3} else if simulating.rounds <= field.par {2} else {1},..default()},
+                                ..default()
+                            });
+                        }
+                        if pause_menu_data.mode == PauseMenuMode::Lose {
+                            parent.spawn(TextBundle::from_section(
+                                "Oh No! Your Animals are in trouble! Try Again",
+                                text_style.to_owned()
+                            ));
+                        }
+                    });
+                });
+            }
             parent.spawn((ButtonBundle {
                 style: Style {
                     width: Val::Px(160.0),
@@ -648,7 +841,7 @@ pub fn pause_menu_setup(mut commands: Commands, asset_server: Res<AssetServer>, 
                     });
                 });
             }
-            if pause_menu_data.mode == PauseMenuMode::Editor {
+            if pause_menu_data.mode == PauseMenuMode::Editor && !ONLINE_BUILD {
                 parent.spawn((ButtonBundle {
                     style: Style {
                         width: Val::Px(160.0),
@@ -798,6 +991,7 @@ pub fn game_ui_setup(mut commands: Commands,
     sprites: Res<Sprites>, 
     ui_images: Res<UIImages>, 
     mut menu_data: ResMut<MenuData>,
+    mut tutorial: ResMut<Tutorial>,
     mut keyart_q: Query<&mut Visibility, With<KeyArt>>) {
 
     if let Ok(mut visibility) = keyart_q.get_single_mut() {
@@ -809,14 +1003,62 @@ pub fn game_ui_setup(mut commands: Commands,
         font_size: 20.0,
         ..default()
     };
+    let smallish_text_style = TextStyle {
+        font: asset_server.load("Fonts/MessyThicc.ttf"),
+        font_size: 14.0,
+        ..default()
+    };
     let small_text_style = TextStyle {
         font: asset_server.load("Fonts/MessyThicc.ttf"),
-        font_size: 8.0,
+        font_size: 9.0,
         ..default()
     };
 
     let rightpanel = ui_images.sprites["UIRight"].to_owned();
     let bottompanel = ui_images.sprites["UIBottom"].to_owned();
+
+    if !tutorial.seen {
+        tutorial.seen = true;
+        commands.spawn((NodeBundle {
+            style: Style {
+                width: Val::Percent(100.0),
+                height: Val::Percent(100.0),
+                align_items: AlignItems::Center,
+                justify_content: JustifyContent::Center,
+                position_type: PositionType::Absolute,
+                ..default()
+            },
+            z_index: ZIndex::Global(10),
+            background_color: Color::rgba(0.2, 0.2, 0.25, 0.8).into(),
+            ..default()
+        }, TutorialButton)).with_children(|parent| {
+            parent.spawn((ButtonBundle {
+                style: Style {
+                    width: Val::Percent(80.0),
+                    height: Val::Percent(80.0),
+                    justify_content: JustifyContent::Center,
+                    align_items: AlignItems::Center,
+                    position_type: PositionType::Absolute,
+                    ..default()
+                },
+                background_color: Color::NONE.into(),
+                ..default()
+            }, 
+            MenuButton{
+                button_effect: ButtonEffect::EndTutorial,
+                pickup_object: EntityType::None,
+                level: None,
+                hovering: false, 
+                hover_time: 0.0,
+                ..default()
+            })).with_children(|parent| {
+                parent.spawn(TextBundle::from_section(
+                    "Welcome to SokoBARN!\n\nThe Farmer's gone missing, and the animals are picking up his job!\n\nMouse over a tile to see what it does! This is your main source of information.\n\nDrag and drop food onto the map. Your goal is to get each animal and cart into their respective pens.\n\nSee if you can reach the Par score on each level, or even match pace with the Developers!",
+                    smallish_text_style.to_owned()
+                ));
+            });
+        });
+    }
     
     menu_data.button_entities = vec![
         commands.spawn(NodeBundle {
@@ -878,7 +1120,7 @@ pub fn game_ui_setup(mut commands: Commands,
                     }).with_children(|parent| {
                         parent.spawn((TextBundle::from_section(
                             "Round 0",
-                            small_text_style.to_owned()
+                            smallish_text_style.to_owned()
                         ), RoundCounter));
                     });
                 }).with_children(|parent| {
@@ -1207,7 +1449,7 @@ pub fn game_ui_setup(mut commands: Commands,
                             text_style.to_owned()
                         ));
                     });
-                }).with_children(|parent| {
+                })/*.with_children(|parent| {
                     parent.spawn((ButtonBundle {
                         style: Style {
                             left: Val::Px(2.0),
@@ -1269,12 +1511,12 @@ pub fn game_ui_setup(mut commands: Commands,
                             ..Default::default()
                         }, Description{part:2}));
                     });
-                }).with_children(|parent| {
+                })*/.with_children(|parent| {
                     parent.spawn((ButtonBundle {
                         style: Style {
                             left: Val::Px(2.0),
                             width: Val::Px(TILE_SIZE * 2.0),
-                            height: Val::Px(TILE_SIZE * 2.0),
+                            height: Val::Px(TILE_SIZE * 3.0),
                             grid_column: GridPlacement::span(2),
                             justify_content: JustifyContent::Center,
                             align_items: AlignItems::Center,
@@ -1386,10 +1628,10 @@ pub fn game_ui_setup(mut commands: Commands,
                             "",
                             text_style.to_owned()
                         ));
-                        parent.spawn(TextBundle::from_section(
-                            "Level 1-1",
+                        parent.spawn(({TextBundle::from_section(
+                            "PAR: ".to_owned(),
                             text_style.to_owned()
-                        ));
+                        )}, ParText));
                         parent.spawn(TextBundle::from_section(
                             "",
                             text_style.to_owned()
@@ -1429,6 +1671,7 @@ pub fn game_ui_setup(mut commands: Commands,
 }
 
 pub fn button_system(
+    mut commands: Commands, 
     mut interaction_query: Query<
         (
             &Interaction,
@@ -1438,6 +1681,7 @@ pub fn button_system(
     >,
     mut disabler_q: Query<(&mut Visibility, &ButtonDisabled)>,
     entity_q: Query<&GameEntity>,
+    screencover_q: Query<Entity, Or<(With<CreditsButton>, With<TutorialButton>)>>,
     mut next_state: ResMut<NextState<GameState>>,
     time: Res<Time>,
     mut saving: ResMut<SaveRes>,
@@ -1447,7 +1691,8 @@ pub fn button_system(
     mut app_exit_events: ResMut<Events<bevy::app::AppExit>>,
     mut cursor_q: Query<&mut Cursor>,
     mut round_counter_q: Query<&mut Text, With<RoundCounter>>,
-    mut world_data: ResMut<WorldList>
+    mut world_data: ResMut<WorldList>,
+    asset_server: Res<AssetServer>, 
 ) {
     for (mut visibility, disabler) in &mut disabler_q {
         *visibility = Visibility::Hidden;
@@ -1476,6 +1721,9 @@ pub fn button_system(
                             saving.save = level.id.to_owned();
                             saving.editor_mode = Some(level.editor);
                             saving.weather = Some(level.weather);
+                            saving.song = Some(level.song.to_owned());
+                            saving.par = level.par;
+                            saving.author_par = level.author_par;
                         }
                     }
                     ButtonEffect::Quit => {app_exit_events.send(bevy::app::AppExit);}
@@ -1535,6 +1783,63 @@ pub fn button_system(
                         if world_data.index > 0 {
                             world_data.index -= 1;
                             reload_level_select.reloading = true;
+                        }
+                    }
+                    ButtonEffect::EndTutorial => {
+                        for prompt in &screencover_q {
+                            commands.entity(prompt).despawn();
+                        }
+                    }
+                    ButtonEffect::Credits => {
+                        if screencover_q.is_empty() {
+                            commands.spawn((NodeBundle {
+                                style: Style {
+                                    width: Val::Percent(100.0),
+                                    height: Val::Percent(100.0),
+                                    align_items: AlignItems::Center,
+                                    justify_content: JustifyContent::Center,
+                                    position_type: PositionType::Absolute,
+                                    ..default()
+                                },
+                                z_index: ZIndex::Global(10),
+                                background_color: Color::rgba(0.2, 0.2, 0.22, 0.98).into(),
+                                ..default()
+                            }, CreditsButton)).with_children(|parent| {
+                                parent.spawn((ButtonBundle {
+                                    style: Style {
+                                        width: Val::Percent(85.0),
+                                        height: Val::Percent(85.0),
+                                        justify_content: JustifyContent::Center,
+                                        align_items: AlignItems::Center,
+                                        position_type: PositionType::Absolute,
+                                        ..default()
+                                    },
+                                    background_color: Color::NONE.into(),
+                                    ..default()
+                                }, 
+                                MenuButton{
+                                    button_effect: ButtonEffect::ExitCredits,
+                                    pickup_object: EntityType::None,
+                                    level: None,
+                                    hovering: false, 
+                                    hover_time: 0.0,
+                                    ..default()
+                                })).with_children(|parent| {
+                                    parent.spawn(TextBundle::from_section(
+                                        "  CREDITS\n\n\n\nDankShamwow: Artist, Game/Level Designer, Team Lead\n\nGoldenEpsilon: Programmer, Game Designer\n\nPattieMurr: Music + Sounds, Level Testing\n\nHEHEHE I AM A SUPAHSTAR SAGA: Music, Memes\n\nIMaginatory: Level Testing, Important Feedback",
+                                        TextStyle {
+                                            font: asset_server.load("Fonts/MessyThicc.ttf"),
+                                            font_size: 14.0,
+                                            ..default()
+                                        }
+                                    ));
+                                });
+                            });
+                        }
+                    }
+                    ButtonEffect::ExitCredits => {
+                        for prompt in &screencover_q {
+                            commands.entity(prompt).despawn();
                         }
                     }
                     _ => {}
@@ -1602,7 +1907,7 @@ pub fn game_cleanup(
     mut q_cursor: Query<&mut Cursor>, 
     rain_q: Query<Entity, With<Raindrop>>,
     mut sprite_q: Query<&mut Sprite>,
-    mut weather: ResMut<Weather>,
+    weather: Res<Weather>,
 ) {
     if let Some(overlay_id) = weather.overlay {
         if let Ok(mut overlay) = sprite_q.get_mut(overlay_id) {

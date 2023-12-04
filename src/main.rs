@@ -1,3 +1,5 @@
+#![windows_subsystem = "windows"]
+
 mod game;
 mod menu;
 mod simulation;
@@ -16,12 +18,15 @@ use bevy_common_assets::json::JsonAssetPlugin;
 use bevy_rand::prelude::*;
 use rand_core::RngCore;
 use bevy_prng::ChaCha8Rng;
+use bevy_pkv::PkvStore;
+use serde::{Deserialize, Serialize};
 
 static TILE_SIZE: f32 = 32.0;
 static ASPECT_RATIO_W: f32 = 16.0;
 static ASPECT_RATIO_H: f32 = 9.0;
 static TILE_OFFSET_X: f32 = 7.5;
 static TILE_OFFSET_Y: f32 = 3.0;
+static ONLINE_BUILD: bool = true;
 
 #[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Hash, States)]
 pub enum GameState {
@@ -51,6 +56,9 @@ pub struct CursorObj {
 pub struct KeyArt;
 
 #[derive(Component)]
+pub struct MusicPlayer;
+
+#[derive(Component)]
 pub struct Scaling {
     position: Vec2
 }
@@ -59,6 +67,14 @@ pub struct Scaling {
 #[derive(Default)]
 pub struct Sprites {
     sprites: HashMap<String, Handle<TextureAtlas>>
+}
+
+#[derive(Resource)]
+#[derive(Default)]
+#[derive(Serialize, Deserialize, Debug)]
+#[derive(Clone)]
+pub struct Medals {
+    pub medals: HashMap<String, usize>
 }
 
 #[derive(Resource)]
@@ -78,6 +94,18 @@ pub struct UIImages {
 #[derive(Default)]
 pub struct Sounds {
     sounds: HashMap<String, Handle<AudioSource>>
+}
+
+#[derive(Resource)]
+#[derive(Default)]
+pub struct Tutorial {
+    seen: bool
+}
+
+#[derive(Resource)]
+#[derive(Default)]
+pub struct GameMusic {
+    songs: HashMap<String, Handle<AudioSource>>
 }
 
 #[derive(Resource)]
@@ -107,6 +135,8 @@ fn main() {
             EntropyPlugin::<ChaCha8Rng>::default()
         ))
         .insert_resource(ClearColor(Color::hex("ACD132").unwrap()))
+        .insert_resource(PkvStore::new("BarnyardBunch", "SokoBARN"))
+        .insert_resource(Tutorial{seen: false})
         .add_systems(Startup, setup)
 
         //Menus
@@ -127,6 +157,9 @@ fn main() {
         //Move custom cursor
         .add_systems(Update, cursor)
 
+        //Par Text
+        .add_systems(Update, par_text_system.run_if(resource_exists::<Field>()))
+
         //Gameplay
         .add_systems(OnEnter(GameState::Gameplay), (setup_level, game_ui_setup).run_if(common_conditions::not(resource_exists::<Field>())))
         .add_systems(Update, saving_system.run_if(in_state(GameState::Gameplay).or_else(in_state(GameState::Pause))))
@@ -144,7 +177,8 @@ fn main() {
 fn setup(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
-    mut texture_atlases: ResMut<Assets<TextureAtlas>>
+    mut texture_atlases: ResMut<Assets<TextureAtlas>>,
+    mut pkv: ResMut<PkvStore>
     ) {
 
     commands.insert_resource(SaveRes { saving: SaveStage::Idle, save: "level.skb".to_owned(), quicksaves: vec![], ..default() });
@@ -157,37 +191,38 @@ fn setup(
     let mut worlds = vec![];
 
     worlds.push(LevelWorld{
-        name: "Editor".to_owned(),
-        levels: vec![
-            LevelData {
-                name: "Blank".to_owned(),
-                id: "Levels/blank.skb".to_owned(),
-                editor: true,
-                ..default()
-            }
-        ]
-    });
-    worlds.push(LevelWorld{
         name: "Tutorials".to_owned(),
         levels: vec![
             LevelData {
                 name: "Goat 1".to_owned(),
                 id: "Levels/goat-tutorial-1.skb".to_owned(),
+                song: "Song 3".to_owned(),
+                par: 6,
+                author_par: 4,
                 ..default()
             },
             LevelData {
                 name: "Goat 2".to_owned(),
                 id: "Levels/goat-tutorial-2.skb".to_owned(),
+                song: "Song 3".to_owned(),
+                par: 8,
+                author_par: 6,
                 ..default()
             },
             LevelData {
                 name: "Horse 1".to_owned(),
                 id: "Levels/horse-tutorial-1.skb".to_owned(),
+                song: "Song 3".to_owned(),
+                par: 9,
+                author_par: 7,
                 ..default()
             },
             LevelData {
                 name: "Horse 2".to_owned(),
                 id: "Levels/horse-tutorial-2.skb".to_owned(),
+                song: "Song 3".to_owned(),
+                par: 8,
+                author_par: 10,
                 ..default()
             }
         ]
@@ -198,48 +233,131 @@ fn setup(
             LevelData {
                 name: "Pig 1".to_owned(),
                 id: "Levels/pig-tutorial-1.skb".to_owned(),
+                song: "Song 2".to_owned(),
+                par: 11,
+                author_par: 10,
                 ..default()
             },
             LevelData {
                 name: "Pig 2".to_owned(),
                 id: "Levels/pig-tutorial-2.skb".to_owned(),
+                song: "Song 2".to_owned(),
+                par: 6,
+                author_par: 5,
                 ..default()
             },
             LevelData {
                 name: "Chicken 1".to_owned(),
                 id: "Levels/chicken-tutorial-1.skb".to_owned(),
+                song: "Song 2".to_owned(),
+                par: 13,
+                author_par: 12,
                 ..default()
             },
             LevelData {
                 name: "Chicken 2".to_owned(),
                 id: "Levels/chicken-tutorial-2.skb".to_owned(),
+                song: "Song 2".to_owned(),
+                par: 9,
+                author_par: 8,
                 ..default()
             }
         ]
     });
     worlds.push(LevelWorld{
-        name: "Extras".to_owned(),
+        name: "Rain".to_owned(),
         levels: vec![
             LevelData {
                 name: "Rain 1".to_owned(),
                 id: "Levels/Rain-1.skb".to_owned(),
                 weather: WeatherType::Raining,
+                song: "Rain 2".to_owned(),
+                par: 11,
+                author_par: 8,
                 ..default()
             },
             LevelData {
                 name: "Rain 2".to_owned(),
                 id: "Levels/Rain-2.skb".to_owned(),
                 weather: WeatherType::Raining,
+                song: "Rain 2".to_owned(),
+                par: 12,
+                author_par: 10,
                 ..default()
             },
             LevelData {
-                name: "Night 1".to_owned(),
-                id: "Levels/Night-1.skb".to_owned(),
-                weather: WeatherType::Night,
+                name: "Rain 3".to_owned(),
+                id: "Levels/Rain-3.skb".to_owned(),
+                weather: WeatherType::Raining,
+                song: "Rain 1".to_owned(),
+                par: 15,
+                author_par: 14,
+                ..default()
+            },
+            LevelData {
+                name: "Rain 4".to_owned(),
+                id: "Levels/Rain-4.skb".to_owned(),
+                weather: WeatherType::Raining,
+                song: "Rain 1".to_owned(),
+                par: 17,
+                author_par: 16,
                 ..default()
             },
         ]
     });
+    
+    worlds.push(LevelWorld{
+        name: "Night".to_owned(),
+        levels: vec![
+            LevelData {
+                name: "Night 1".to_owned(),
+                id: "Levels/Night-1.skb".to_owned(),
+                weather: WeatherType::Night,
+                song: "Song 1".to_owned(),
+                par: 50,
+                author_par: 43,
+                ..default()
+            },
+            LevelData {
+                name: "Night 2".to_owned(),
+                id: "Levels/Night-2.skb".to_owned(),
+                weather: WeatherType::Night,
+                song: "Song 1".to_owned(),
+                par: 10,
+                author_par: 7,
+                ..default()
+            },
+            LevelData {
+                name: "Night 3".to_owned(),
+                id: "Levels/Night-3.skb".to_owned(),
+                weather: WeatherType::RainyNight,
+                song: "Rain 1".to_owned(),
+                par: 18,
+                author_par: 15,
+                ..default()
+            },
+            LevelData {
+                name: "Editor".to_owned(),
+                id: "Levels/blank.skb".to_owned(),
+                song: "Song 1".to_owned(),
+                editor: true,
+                ..default()
+            }
+        ]
+    });
+
+    if let Ok(medals) = pkv.get::<Medals>("save") {
+        commands.insert_resource(medals);
+    } else {
+        let mut medals: HashMap<String, usize> = HashMap::new();
+        for world in &worlds {
+            for level in &world.levels {
+                medals.insert(level.id.to_owned(), 0);
+            }
+        }
+        pkv.set("save", &medals).expect("failed to store medals");
+        commands.insert_resource(Medals{medals});
+    }
 
     commands.insert_resource(WorldList { index: 0, worlds });
 
@@ -258,11 +376,25 @@ fn setup(
     {let level = "Levels/chicken-tutorial-1.skb";levels.insert(level.to_owned(), asset_server.load(level));}
     {let level = "Levels/chicken-tutorial-2.skb";levels.insert(level.to_owned(), asset_server.load(level));}
     {let level = "Levels/Night-1.skb";levels.insert(level.to_owned(), asset_server.load(level));}
+    {let level = "Levels/Night-2.skb";levels.insert(level.to_owned(), asset_server.load(level));}
+    {let level = "Levels/Night-3.skb";levels.insert(level.to_owned(), asset_server.load(level));}
+    {let level = "Levels/Night-4.skb";levels.insert(level.to_owned(), asset_server.load(level));}
     {let level = "Levels/Rain-1.skb";levels.insert(level.to_owned(), asset_server.load(level));}
     {let level = "Levels/Rain-2.skb";levels.insert(level.to_owned(), asset_server.load(level));}
+    {let level = "Levels/Rain-3.skb";levels.insert(level.to_owned(), asset_server.load(level));}
+    {let level = "Levels/Rain-4.skb";levels.insert(level.to_owned(), asset_server.load(level));}
     {let level = "Levels/blank.skb";levels.insert(level.to_owned(), asset_server.load(level));}
     
     commands.insert_resource(Levels { levels: levels });
+
+    
+    let mut music: HashMap<String, Handle<AudioSource>> = HashMap::new();
+    music.insert("Song 1".to_owned(), asset_server.load("Music/sokobarn_loop1.ogg"));
+    music.insert("Song 2".to_owned(), asset_server.load("Music/sokobarn_loop2.ogg"));
+    music.insert("Song 3".to_owned(), asset_server.load("Music/sokobarn_loop3.ogg"));
+    music.insert("Rain 1".to_owned(), asset_server.load("Music/sokobarn_rain_loop1.ogg"));
+    music.insert("Rain 2".to_owned(), asset_server.load("Music/sokobarn_rain_loop2.ogg"));
+    commands.insert_resource(GameMusic { songs: music });
 
     
     let mut ui_images: HashMap<String, Handle<Image>> = HashMap::new();
@@ -402,15 +534,6 @@ fn setup(
             ..Default::default()
         }, KeyArt));
     });
-
-    commands.spawn(AudioBundle {
-        source: asset_server.load("Music/contemplativealgorithmic_demo_1.ogg"),
-        settings: PlaybackSettings{
-            mode: PlaybackMode::Loop,
-            ..default()
-        },
-        ..default()
-    });
 }
 
 fn resize_system(mut object_set: ParamSet<(
@@ -466,8 +589,8 @@ pub fn cursor(
     if let Ok(window) = q_windows.get_single() {
         if let Some(position) = window.cursor_position() {
             if let Ok((mut cursor, mut style, children)) = q_cursor.get_single_mut() {
-                style.left = Val::Px((position.x-64.0-20.0)/(ui_scale.scale as f32));
-                style.top = Val::Px((position.y-64.0-20.0)/(ui_scale.scale as f32));
+                style.left = Val::Px(position.x/(ui_scale.scale as f32)-32.0);
+                style.top = Val::Px(position.y/(ui_scale.scale as f32)-32.0);
 
                 cursor.pos = position;
                 if Vec2::distance(cursor.pos, cursor.starting_pos) > CURSOR_MIN_MOVE_DIST {

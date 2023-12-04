@@ -2,6 +2,7 @@ use crate::*;
 use crate::game::*;
 
 use bevy::prelude::*;
+use bevy_pkv::PkvStore;
 
 pub fn simulate(
     mut commands: Commands, 
@@ -15,6 +16,8 @@ pub fn simulate(
     mut saving: ResMut<SaveRes>,
     mut next_state: ResMut<NextState<GameState>>,
     mut pause_menu_data: ResMut<PauseMenuData>,
+    mut pkv: ResMut<PkvStore>,
+    mut medals: ResMut<Medals>,
     mut working_q: Query<(&mut TextureAtlasSprite, &mut Visibility, &mut AnimationTimer)>,
     tile_q: Query<&Tile>,){
     if let Some(indicator) = simulating.indicator {
@@ -36,6 +39,7 @@ pub fn simulate(
             SpriteSheetBundle {
                 texture_atlas: sprites.sprites["Working"].clone(),
                 sprite: TextureAtlasSprite::new(0),
+                transform: Transform::from_xyz(0.0, 0.0, 150.0),
                 ..default()
             },
             Scaling {
@@ -81,7 +85,7 @@ pub fn simulate(
                     match entity.entity_type {
                         EntityType::Chicken | EntityType::Pig | EntityType::Horse | EntityType::Goat | EntityType::Wagon => {
                             match state {
-                                EntityState::Idle => {
+                                EntityState::Idle | EntityState::Eating => {
                                     let target_location = field.can_see_food(entity, &entity_q.to_readonly(), &tile_q);
                                     if target_location.x != entity.location.x || target_location.y != entity.location.y {
                                         if !field.move_entity(&mut commands, &mut entity_q, &tile_q, &sounds, &sprites, &mut rng, entity, target_location) {
@@ -128,6 +132,17 @@ pub fn simulate(
                         entity.state = EntityState::Celebrating;
                     }
                     pause_menu_data.mode = PauseMenuMode::Win;
+                    let mut earned_medal = 1;
+                    if simulating.rounds <= field.par {
+                        earned_medal = 2;
+                    }
+                    if simulating.rounds <= field.author_par {
+                        earned_medal = 3;
+                    }
+                    if medals.medals[&field.level_id] < earned_medal {
+                        *medals.medals.get_mut(&field.level_id).unwrap() = earned_medal;
+                        pkv.set("save", &medals.to_owned()).expect("failed to store medals");
+                    }
                     saving.saving = SaveStage::SaveUndo;
                     next_state.set(GameState::Pause);
                 }

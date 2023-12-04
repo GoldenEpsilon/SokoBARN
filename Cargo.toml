@@ -1,6 +1,6 @@
 [package]
 name = "sokobarn"
-version = "0.1.0"
+version = "1.0.0"
 edition = "2021"
 
 [dependencies]
@@ -12,12 +12,16 @@ bevy_common_assets = {version = "0.7", features = ["json"] }
 rand_core = "0.6"
 bevy_rand = "0.3"
 bevy_prng = { version = "0.1", features = ["rand_chacha"] }
+bevy_pkv = "0.8"
 
 [profile.dev]
 opt-level = 1
 
 [profile.dev.package."*"]
 opt-level = 3
+
+[profile.release]
+opt-level = 'z'
 
 [target.wasm32-unknown-unknown]
 runner = "wasm-server-runner"
