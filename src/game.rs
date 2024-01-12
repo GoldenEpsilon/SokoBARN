@@ -2121,6 +2121,7 @@ pub fn saving_system(
     q_tile: Query<&Tile>,
     q_entity: Query<&GameEntity>,
     q_flag: Query<&Flag>, 
+    mut q_cursor: Query<&mut Cursor>, 
     music_player: Query<Entity, With<MusicPlayer>>,    
     mut simulation: ResMut<SimulateRes>,
     mut saving: ResMut<SaveRes>,
@@ -2182,6 +2183,9 @@ pub fn saving_system(
             }
             SaveStage::Loading => {
                 println!("LOADING {}", saving.save.to_owned());
+                if let Ok(mut cursor) = q_cursor.get_single_mut() {
+                    cursor.holding = EntityType::None;
+                }
                 if let Some(loaded_weather) = saving.weather {
                     weather.weather = loaded_weather;
                 }
@@ -2309,6 +2313,9 @@ pub fn saving_system(
                 println!("LOADING UNDO");
                 if saving.quicksaves.len() > 1 {
                     saving.quicksaves.pop();
+                    if let Ok(mut cursor) = q_cursor.get_single_mut() {
+                        cursor.holding = EntityType::None;
+                    }
                     if let Some((save_string, savedsimulation)) = saving.quicksaves.last() {
                         if let Ok(save) = serde_json::from_str::<SaveFile>(&save_string) {
                             simulation.rounds = savedsimulation.rounds;
