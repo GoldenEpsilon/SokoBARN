@@ -73,6 +73,36 @@ pub fn simulate(
                         continue;
                     }
                     let mut state = entity.state;
+                    if let Ok(tile) = tile_q.get(field.tiles[entity.location.x][entity.location.y].0) {
+                        match tile.tile_type {
+                            TileType::ChickenPen => {
+                                if entity.entity_type == EntityType::Chicken {
+                                    state = EntityState::Celebrating
+                                }
+                            }
+                            TileType::PigPen => {
+                                if entity.entity_type == EntityType::Pig {
+                                    state = EntityState::Celebrating
+                                }
+                            }
+                            TileType::HorsePen => {
+                                if entity.entity_type == EntityType::Horse {
+                                    state = EntityState::Celebrating
+                                }
+                            }
+                            TileType::GoatPen => {
+                                if entity.entity_type == EntityType::Goat {
+                                    state = EntityState::Celebrating
+                                }
+                            }
+                            TileType::Corral => {
+                                if entity.entity_type == EntityType::Wagon {
+                                    state = EntityState::Celebrating
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
                     if entity.state == EntityState::Special {
                         state = match entity.entity_type {
                             EntityType::Chicken => {EntityState::Sliding}

@@ -221,8 +221,8 @@ fn setup(
                 name: "Horse 2".to_owned(),
                 id: "Levels/horse-tutorial-2.skb".to_owned(),
                 song: "Song 3".to_owned(),
-                par: 8,
-                author_par: 10,
+                par: 10,
+                author_par: 8,
                 ..default()
             }
         ]
