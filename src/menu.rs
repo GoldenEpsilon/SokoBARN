@@ -643,8 +643,12 @@ pub fn pause_menu_setup(mut commands: Commands, asset_server: Res<AssetServer>, 
             if pause_menu_data.mode == PauseMenuMode::Lose || pause_menu_data.mode == PauseMenuMode::Win {
                 parent.spawn((ButtonBundle {
                     style: Style {
-                        width: Val::Px(160.0),
-                        height: Val::Px(32.0),
+                        width: Val::Px(
+                            if pause_menu_data.mode == PauseMenuMode::Lose {280.0} else {160.0}
+                        ),
+                        height: Val::Px(
+                            if pause_menu_data.mode == PauseMenuMode::Lose {72.0} else {32.0}
+                        ),
                         //border: UiRect::all(Val::Px(5.0)),
                         // horizontally center child text
                         justify_content: JustifyContent::Center,
@@ -694,7 +698,7 @@ pub fn pause_menu_setup(mut commands: Commands, asset_server: Res<AssetServer>, 
                         }
                         if pause_menu_data.mode == PauseMenuMode::Lose {
                             parent.spawn(TextBundle::from_section(
-                                "Oh No! Your Animals are in trouble! Try Again",
+                                "Oh No! Your Animals are in trouble!\nTry Again.",
                                 text_style.to_owned()
                             ));
                         }
@@ -1750,6 +1754,8 @@ pub fn button_system(
                     }
                     ButtonEffect::Reload => {
                         next_state.set(GameState::Gameplay);
+                        simulating.loss = false;
+                        simulating.win = false;
                         saving.saving = SaveStage::Loading;
                     }
                     ButtonEffect::Undo => {

@@ -26,7 +26,7 @@ static ASPECT_RATIO_W: f32 = 16.0;
 static ASPECT_RATIO_H: f32 = 9.0;
 static TILE_OFFSET_X: f32 = 7.5;
 static TILE_OFFSET_Y: f32 = 3.0;
-static ONLINE_BUILD: bool = true;
+static ONLINE_BUILD: bool = false;
 
 #[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Hash, States)]
 pub enum GameState {

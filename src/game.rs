@@ -1148,7 +1148,7 @@ impl Field {
     }
 
     pub fn check_win(&mut self,
-        entity_q: &Query<&GameEntity>, 
+        entity_q: &mut Query<&mut GameEntity>, 
         tile_q: &Query<&Tile>, 
     ) -> bool {
         let mut ret_val = false;
@@ -1158,9 +1158,10 @@ impl Field {
                     match tile_type.tile_type {
                         TileType::ChickenPen => {
                             if let Some(entity_id) = tile.3 {
-                                if let Ok(entity) = entity_q.get(entity_id) {
+                                if let Ok(mut entity) = entity_q.get_mut(entity_id) {
                                     if entity.entity_type == EntityType::Chicken {
                                         ret_val = true;
+                                        entity.state = EntityState::Celebrating;
                                         continue;
                                     }
                                 }
@@ -1169,9 +1170,10 @@ impl Field {
                         }
                         TileType::HorsePen => {
                             if let Some(entity_id) = tile.3 {
-                                if let Ok(entity) = entity_q.get(entity_id) {
+                                if let Ok(mut entity) = entity_q.get_mut(entity_id) {
                                     if entity.entity_type == EntityType::Horse {
                                         ret_val = true;
+                                        entity.state = EntityState::Celebrating;
                                         continue;
                                     }
                                 }
@@ -1180,9 +1182,10 @@ impl Field {
                         }
                         TileType::PigPen => {
                             if let Some(entity_id) = tile.3 {
-                                if let Ok(entity) = entity_q.get(entity_id) {
+                                if let Ok(mut entity) = entity_q.get_mut(entity_id) {
                                     if entity.entity_type == EntityType::Pig {
                                         ret_val = true;
+                                        entity.state = EntityState::Celebrating;
                                         continue;
                                     }
                                 }
@@ -1191,9 +1194,10 @@ impl Field {
                         }
                         TileType::GoatPen => {
                             if let Some(entity_id) = tile.3 {
-                                if let Ok(entity) = entity_q.get(entity_id) {
+                                if let Ok(mut entity) = entity_q.get_mut(entity_id) {
                                     if entity.entity_type == EntityType::Goat {
                                         ret_val = true;
+                                        entity.state = EntityState::Celebrating;
                                         continue;
                                     }
                                 }
@@ -1202,9 +1206,10 @@ impl Field {
                         }
                         TileType::Corral => {
                             if let Some(entity_id) = tile.3 {
-                                if let Ok(entity) = entity_q.get(entity_id) {
+                                if let Ok(mut entity) = entity_q.get_mut(entity_id) {
                                     if entity.entity_type == EntityType::Wagon {
                                         ret_val = true;
+                                        entity.state = EntityState::Celebrating;
                                         continue;
                                     }
                                 }
@@ -1388,9 +1393,11 @@ impl Field {
                                 eating = true;
                             }
                         }
-                        if eating {
-                            if let Ok(mut moving_entity) = entity_q.get_mut(entity_id) {
-                                moving_entity.state = EntityState::Eating;
+                        if let Ok(tile) = tile_q.get(self.tiles[x][y].0) {
+                            if eating && tile.tile_type != TileType::Mud && tile.tile_type != TileType::MuddyRocks {
+                                if let Ok(mut moving_entity) = entity_q.get_mut(entity_id) {
+                                    moving_entity.state = EntityState::Eating;
+                                }
                             }
                         }
                     }
@@ -1443,7 +1450,9 @@ impl Field {
                                                     },
                                                     ..default()
                                                 });
-                                                entity.state = EntityState::Special;
+                                                //if entity.state != EntityState::Eating {
+                                                    entity.state = EntityState::Special;
+                                                //}
                                                 target_entity.last_direction = move_direction;
                                                 target_entity.location.x = tile_slam_target_x;
                                                 target_entity.location.y = tile_slam_target_y;
@@ -1648,7 +1657,7 @@ impl Field {
                             if moving_entity.target_location.x == moving_entity.location.x && moving_entity.target_location.y == moving_entity.location.y {
                                 moving_entity.state = EntityState::Idle;
                             }
-                            if eating && entity.state != EntityState::Special {
+                            if eating {
                                 moving_entity.state = EntityState::Eating;
                             }
                         }

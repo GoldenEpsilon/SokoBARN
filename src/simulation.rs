@@ -66,6 +66,7 @@ pub fn simulate(
                 full_simulation = true;
             }
             println!("Simulation Tick!");
+            field.check_win(&mut entity_q, &tile_q); //checking for the win also makes sure anyone that is supposed to be celebrating is celebrating
             let mut has_simulated = false;
             while simulating.simulation_step != EntityType::None && has_simulated != true {
                 for entity in field.get_entities(&entity_q.to_readonly()) {
@@ -108,14 +109,25 @@ pub fn simulate(
                             EntityType::Chicken => {EntityState::Sliding}
                             EntityType::Pig => {EntityState::Idle}
                             EntityType::Horse => {EntityState::Idle}
-                            EntityType::Goat => {EntityState::Idle}
+                            EntityType::Goat => {EntityState::Eating}
                             _ => {entity.state}
                         };
                     }
                     match entity.entity_type {
                         EntityType::Chicken | EntityType::Pig | EntityType::Horse | EntityType::Goat | EntityType::Wagon => {
                             match state {
-                                EntityState::Idle | EntityState::Eating => {
+                                EntityState::Eating => {
+                                    if field.can_get_tile(entity.location.x, entity.location.y) {
+                                        if let Some(entity) = field.tiles[entity.location.x][entity.location.y].3 {
+                                            if let Ok(mut entity) = entity_q.get_mut(entity) {
+                                                entity.state = EntityState::Idle;
+                                                simulating.simulating = true;
+                                                has_simulated = true;
+                                            }
+                                        }
+                                    }
+                                }
+                                EntityState::Idle => {
                                     let target_location = field.can_see_food(entity, &entity_q.to_readonly(), &tile_q);
                                     if target_location.x != entity.location.x || target_location.y != entity.location.y {
                                         if !field.move_entity(&mut commands, &mut entity_q, &tile_q, &sounds, &sprites, &mut rng, entity, target_location) {
@@ -157,7 +169,7 @@ pub fn simulate(
                         _ => {}
                     }
                 }
-                if field.check_win(&entity_q.to_readonly(), &tile_q) {
+                if field.check_win(&mut entity_q, &tile_q) {
                     for mut entity in &mut entity_q {
                         entity.state = EntityState::Celebrating;
                     }
