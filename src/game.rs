@@ -1873,6 +1873,9 @@ impl Field {
                                         if pull_entity.entity_type == EntityType::Wagon && tile.tile_type == TileType::Rocks {
                                             return false;
                                         }
+                                        if pull_entity.entity_type == EntityType::Wagon && tile.tile_type == TileType::Corral {
+                                            pull_entity.state = EntityState::Celebrating;
+                                        }
                                         if tile.tile_type == TileType::Mud || tile.tile_type == TileType::MuddyRocks {
                                             pull_entity.state = EntityState::Sliding;
                                         }

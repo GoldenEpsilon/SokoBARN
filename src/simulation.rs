@@ -66,7 +66,6 @@ pub fn simulate(
                 full_simulation = true;
             }
             println!("Simulation Tick!");
-            field.check_win(&mut entity_q, &tile_q); //checking for the win also makes sure anyone that is supposed to be celebrating is celebrating
             let mut has_simulated = false;
             while simulating.simulation_step != EntityType::None && has_simulated != true {
                 for entity in field.get_entities(&entity_q.to_readonly()) {
@@ -74,36 +73,6 @@ pub fn simulate(
                         continue;
                     }
                     let mut state = entity.state;
-                    if let Ok(tile) = tile_q.get(field.tiles[entity.location.x][entity.location.y].0) {
-                        match tile.tile_type {
-                            TileType::ChickenPen => {
-                                if entity.entity_type == EntityType::Chicken {
-                                    state = EntityState::Celebrating
-                                }
-                            }
-                            TileType::PigPen => {
-                                if entity.entity_type == EntityType::Pig {
-                                    state = EntityState::Celebrating
-                                }
-                            }
-                            TileType::HorsePen => {
-                                if entity.entity_type == EntityType::Horse {
-                                    state = EntityState::Celebrating
-                                }
-                            }
-                            TileType::GoatPen => {
-                                if entity.entity_type == EntityType::Goat {
-                                    state = EntityState::Celebrating
-                                }
-                            }
-                            TileType::Corral => {
-                                if entity.entity_type == EntityType::Wagon {
-                                    state = EntityState::Celebrating
-                                }
-                            }
-                            _ => {}
-                        }
-                    }
                     if entity.state == EntityState::Special {
                         state = match entity.entity_type {
                             EntityType::Chicken => {EntityState::Sliding}
