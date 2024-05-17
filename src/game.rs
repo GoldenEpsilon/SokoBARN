@@ -177,6 +177,34 @@ pub enum EntityType {
     Flag4,
 }
 
+impl EntityType {
+    pub fn texture_atlas(&self, sprites: &Res<Sprites>) -> Handle<TextureAtlas>{
+        match self {
+            EntityType::Chicken => sprites.sprites["Chicken"].clone(),
+            EntityType::Pig => sprites.sprites["Pig"].clone(),
+            EntityType::Horse => sprites.sprites["Horse"].clone(),
+            EntityType::Goat => sprites.sprites["Goat"].clone(),
+            EntityType::Wagon => sprites.sprites["Wagon"].clone(),
+            EntityType::ChickenFood => sprites.sprites["Food"].clone(),
+            EntityType::PigFood => sprites.sprites["Food"].clone(),
+            EntityType::HorseFood => sprites.sprites["Food"].clone(),
+            EntityType::AllFood => sprites.sprites["Food"].clone(),
+            EntityType::WagonFood => sprites.sprites["Food"].clone(),
+            _ => sprites.sprites["Chicken"].clone(),
+        }
+    }
+    pub fn texture_index(&self) -> UiTextureAtlasImage{
+        match self {
+            EntityType::ChickenFood => UiTextureAtlasImage{index:0,..default()},
+            EntityType::PigFood => UiTextureAtlasImage{index:1,..default()},
+            EntityType::HorseFood => UiTextureAtlasImage{index:2,..default()},
+            EntityType::AllFood => UiTextureAtlasImage{index:3,..default()},
+            EntityType::WagonFood => UiTextureAtlasImage{index:4,..default()},
+            _ => UiTextureAtlasImage{index:0,..default()},
+        }
+    }
+}
+
 #[derive(PartialEq)]
 #[derive(Clone, Copy)]
 #[derive(Serialize, Deserialize, Debug)]

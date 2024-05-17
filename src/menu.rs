@@ -8,7 +8,6 @@ use bevy::audio::{Volume, VolumeLevel};
 #[derive(Default)]
 pub struct MenuButton{
     pub button_effect: ButtonEffect,
-    pub pickup_object: EntityType,
     pub level: Option<LevelData>,
     pub hovering: bool,
     pub hover_time: f32,
@@ -115,7 +114,8 @@ pub enum ButtonEffect{
     Play,
     Quit,
     Settings,
-    PickUp,
+    PickUp(EntityType, bool),
+    Place(TileType),
     Start,
     Save,
     Load,
@@ -126,6 +126,8 @@ pub enum ButtonEffect{
     EndTutorial,
     Credits,
     ExitCredits,
+    EditorPageLeft,
+    EditorPageRight
 }
 
 pub fn menu_setup(mut commands: Commands, asset_server: Res<AssetServer>, ui_images: Res<UIImages>, music: Res<GameMusic>, music_player: Query<Entity, With<MusicPlayer>>, mut keyart_q: Query<&mut Visibility, With<KeyArt>>) {
@@ -199,7 +201,6 @@ pub fn menu_setup(mut commands: Commands, asset_server: Res<AssetServer>, ui_ima
             }, 
             MenuButton{
                 button_effect: ButtonEffect::LevelSelect,
-                pickup_object: EntityType::None,
                 level: None,
                 hovering: false, 
                 hover_time: 0.0,
@@ -244,7 +245,6 @@ pub fn menu_setup(mut commands: Commands, asset_server: Res<AssetServer>, ui_ima
             }, 
             MenuButton{
                 button_effect: ButtonEffect::Credits,
-                pickup_object: EntityType::None,
                 level: None,
                 hovering: false, 
                 hover_time: 0.0,
@@ -289,7 +289,6 @@ pub fn menu_setup(mut commands: Commands, asset_server: Res<AssetServer>, ui_ima
                 }, 
                 MenuButton{
                     button_effect: ButtonEffect::Quit,
-                    pickup_object: EntityType::None,
                     level: None,
                     hovering: false, 
                     hover_time: 0.0,
@@ -361,7 +360,6 @@ pub fn level_select_setup(
         }, 
         MenuButton{
             button_effect: ButtonEffect::MainMenu,
-            pickup_object: EntityType::None,
             level: None,
             hovering: false, 
             hover_time: 0.0,
@@ -470,7 +468,6 @@ pub fn level_select_setup(
         }, 
         MenuButton{
             button_effect: ButtonEffect::PrevWorld,
-            pickup_object: EntityType::None,
             level: None,
             hovering: false, 
             hover_time: 0.0,
@@ -522,7 +519,6 @@ pub fn level_select_setup(
             }, 
             MenuButton{
                 button_effect: ButtonEffect::Play,
-                pickup_object: EntityType::None,
                 level: Some(level.to_owned()),
                 hovering: false, 
                 hover_time: 0.0,
@@ -575,7 +571,6 @@ pub fn level_select_setup(
         }, 
         MenuButton{
             button_effect: ButtonEffect::NextWorld,
-            pickup_object: EntityType::None,
             level: None,
             hovering: false, 
             hover_time: 0.0,
@@ -662,7 +657,6 @@ pub fn pause_menu_setup(mut commands: Commands, asset_server: Res<AssetServer>, 
                 }, 
                 MenuButton{
                     button_effect: ButtonEffect::None,
-                    pickup_object: EntityType::None,
                     level: None,
                     hovering: false, 
                     hover_time: 0.0,
@@ -722,7 +716,6 @@ pub fn pause_menu_setup(mut commands: Commands, asset_server: Res<AssetServer>, 
             }, 
             MenuButton{
                 button_effect: ButtonEffect::MainMenu,
-                pickup_object: EntityType::None,
                 level: None,
                 hovering: false, 
                 hover_time: 0.0,
@@ -769,7 +762,6 @@ pub fn pause_menu_setup(mut commands: Commands, asset_server: Res<AssetServer>, 
                 }, 
                 MenuButton{
                     button_effect: ButtonEffect::Reload,
-                    pickup_object: EntityType::None,
                     level: None,
                     hovering: false, 
                     hover_time: 0.0,
@@ -817,7 +809,6 @@ pub fn pause_menu_setup(mut commands: Commands, asset_server: Res<AssetServer>, 
                 }, 
                 MenuButton{
                     button_effect: ButtonEffect::Undo,
-                    pickup_object: EntityType::None,
                     level: None,
                     hovering: false, 
                     hover_time: 0.0,
@@ -865,7 +856,6 @@ pub fn pause_menu_setup(mut commands: Commands, asset_server: Res<AssetServer>, 
                 }, 
                 MenuButton{
                     button_effect: ButtonEffect::Save,
-                    pickup_object: EntityType::None,
                     level: None,
                     hovering: false, 
                     hover_time: 0.0,
@@ -911,7 +901,6 @@ pub fn pause_menu_setup(mut commands: Commands, asset_server: Res<AssetServer>, 
                 }, 
                 MenuButton{
                     button_effect: ButtonEffect::Load,
-                    pickup_object: EntityType::None,
                     level: None,
                     hovering: false, 
                     hover_time: 0.0,
@@ -959,7 +948,6 @@ pub fn pause_menu_setup(mut commands: Commands, asset_server: Res<AssetServer>, 
                 }, 
                 MenuButton{
                     button_effect: ButtonEffect::UnPause,
-                    pickup_object: EntityType::None,
                     level: None,
                     hovering: false, 
                     hover_time: 0.0,
@@ -998,6 +986,7 @@ pub fn game_ui_setup(mut commands: Commands,
     ui_images: Res<UIImages>, 
     mut menu_data: ResMut<MenuData>,
     mut tutorial: ResMut<Tutorial>,
+    field: Res<Field>,
     mut keyart_q: Query<&mut Visibility, With<KeyArt>>) {
 
     if let Ok(mut visibility) = keyart_q.get_single_mut() {
@@ -1052,7 +1041,6 @@ pub fn game_ui_setup(mut commands: Commands,
             }, 
             MenuButton{
                 button_effect: ButtonEffect::EndTutorial,
-                pickup_object: EntityType::None,
                 level: None,
                 hovering: false, 
                 hover_time: 0.0,
@@ -1066,6 +1054,46 @@ pub fn game_ui_setup(mut commands: Commands,
         });
     }
     
+    let buttons = if field.editor_mode {
+        vec![
+            ButtonEffect::PickUp(EntityType::ChickenFood, true), 
+            ButtonEffect::PickUp(EntityType::HorseFood, true),
+            ButtonEffect::PickUp(EntityType::PigFood, true),
+            ButtonEffect::PickUp(EntityType::AllFood, true),
+            ButtonEffect::PickUp(EntityType::Chicken, false),
+            ButtonEffect::PickUp(EntityType::Pig, false),
+            ButtonEffect::PickUp(EntityType::Horse, false),
+            ButtonEffect::PickUp(EntityType::Goat, false),
+            ButtonEffect::PickUp(EntityType::Wagon, false),
+            ButtonEffect::None,
+            ButtonEffect::EditorPageLeft,
+            ButtonEffect::EditorPageRight,
+        ]
+        /*vec![
+            ButtonEffect::Place(TileType::Grass), 
+            ButtonEffect::Place(TileType::Fence), 
+            ButtonEffect::Place(TileType::Rocks), 
+            ButtonEffect::Place(TileType::Mud), 
+            ButtonEffect::Place(TileType::MuddyRocks), 
+            ButtonEffect::Place(TileType::Ditch), 
+            ButtonEffect::Place(TileType::Corral), 
+            ButtonEffect::Place(TileType::ChickenPen), 
+            ButtonEffect::Place(TileType::PigPen), 
+            ButtonEffect::Place(TileType::GoatPen), 
+            ButtonEffect::Place(TileType::HorsePen), 
+            ButtonEffect::None,
+            ButtonEffect::EditorPageLeft,
+            ButtonEffect::EditorPageRight,
+        ]*/
+    } else {
+        vec![
+            ButtonEffect::PickUp(EntityType::ChickenFood, true), 
+            ButtonEffect::PickUp(EntityType::HorseFood, true),
+            ButtonEffect::PickUp(EntityType::PigFood, true),
+            ButtonEffect::PickUp(EntityType::AllFood, true),
+        ]
+    };
+
     menu_data.button_entities = vec![
         commands.spawn(NodeBundle {
             style: Style {
@@ -1129,395 +1157,155 @@ pub fn game_ui_setup(mut commands: Commands,
                             smallish_text_style.to_owned()
                         ), RoundCounter));
                     });
+                    for button in buttons {
+                        match button {
+                            ButtonEffect::PickUp(entity_type, limited) => {
+                                parent.spawn((ButtonBundle {
+                                    style: Style {
+                                        width: Val::Px(TILE_SIZE),
+                                        height: Val::Px(TILE_SIZE),
+                                        justify_content: JustifyContent::Center,
+                                        align_items: AlignItems::Center,
+                                        ..default()
+                                    },
+                                    background_color: Color::NONE.into(),
+                                    ..default()
+                                }, 
+                                MenuButton{
+                                    button_effect: ButtonEffect::PickUp(entity_type, limited),
+                                    level: None,
+                                    hovering: false, 
+                                    hover_time: 0.0,
+                                    ..default()
+                                })).with_children(|parent| {
+                                    parent.spawn(AtlasImageBundle {
+                                        texture_atlas: entity_type.texture_atlas(&sprites),
+                                        texture_atlas_image: entity_type.texture_index(),
+                                        style: Style {
+                                            width: Val::Percent(100.0),
+                                            height: Val::Percent(100.0),
+                                            position_type: PositionType::Absolute,
+                                            ..Default::default()
+                                        },
+                                        background_color: Color::WHITE.into(),
+                                        ..Default::default()
+                                    });
+                                    if limited {
+                                        parent.spawn((AtlasImageBundle {
+                                            texture_atlas: sprites.sprites["Disabled"].to_owned(),
+                                            texture_atlas_image: UiTextureAtlasImage{index:0,..default()},
+                                            style: Style {
+                                                width: Val::Percent(100.0),
+                                                height: Val::Percent(100.0),
+                                                position_type: PositionType::Absolute,
+                                                ..Default::default()
+                                            },
+                                            visibility: Visibility::Hidden,
+                                            background_color: Color::WHITE.into(),
+                                            ..Default::default()
+                                        }, ButtonDisabled { entity: entity_type }));
+                                    }
+                                });
+                            }
+                            ButtonEffect::Place(tile_type) => {
+                                parent.spawn((ButtonBundle {
+                                    style: Style {
+                                        width: Val::Px(TILE_SIZE),
+                                        height: Val::Px(TILE_SIZE),
+                                        justify_content: JustifyContent::Center,
+                                        align_items: AlignItems::Center,
+                                        ..default()
+                                    },
+                                    background_color: Color::NONE.into(),
+                                    ..default()
+                                }, 
+                                MenuButton{
+                                    button_effect: ButtonEffect::Place(tile_type),
+                                    level: None,
+                                    hovering: false, 
+                                    hover_time: 0.0,
+                                    ..default()
+                                })).with_children(|parent| {
+                                    parent.spawn(AtlasImageBundle {
+                                        texture_atlas: entity_type.texture_atlas(&sprites),
+                                        texture_atlas_image: entity_type.texture_index(),
+                                        style: Style {
+                                            width: Val::Percent(100.0),
+                                            height: Val::Percent(100.0),
+                                            position_type: PositionType::Absolute,
+                                            ..Default::default()
+                                        },
+                                        background_color: Color::WHITE.into(),
+                                        ..Default::default()
+                                    });
+                                });
+                            }
+                            ButtonEffect::EditorPageLeft => {
+                                parent.spawn((ButtonBundle {
+                                    style: Style {
+                                        width: Val::Px(TILE_SIZE),
+                                        height: Val::Px(TILE_SIZE),
+                                        justify_content: JustifyContent::Center,
+                                        align_items: AlignItems::Center,
+                                        ..default()
+                                    },
+                                    background_color: Color::NONE.into(),
+                                    ..default()
+                                }, 
+                                MenuButton{
+                                    button_effect: ButtonEffect::EditorPageLeft,
+                                    level: None,
+                                    hovering: false, 
+                                    hover_time: 0.0,
+                                    ..default()
+                                })).with_children(|parent| {
+                                    parent.spawn(TextBundle::from_section(
+                                        "<",
+                                        text_style.to_owned()
+                                    ));
+                                });
+                            }
+                            ButtonEffect::EditorPageRight => {
+                                parent.spawn((ButtonBundle {
+                                    style: Style {
+                                        width: Val::Px(TILE_SIZE),
+                                        height: Val::Px(TILE_SIZE),
+                                        justify_content: JustifyContent::Center,
+                                        align_items: AlignItems::Center,
+                                        ..default()
+                                    },
+                                    background_color: Color::NONE.into(),
+                                    ..default()
+                                }, 
+                                MenuButton{
+                                    button_effect: ButtonEffect::EditorPageRight,
+                                    level: None,
+                                    hovering: false, 
+                                    hover_time: 0.0,
+                                    ..default()
+                                })).with_children(|parent| {
+                                    parent.spawn(TextBundle::from_section(
+                                        ">",
+                                        text_style.to_owned()
+                                    ));
+                                });
+                            }
+                            _ => {
+                                parent.spawn(ButtonBundle {
+                                    style: Style {
+                                        width: Val::Px(TILE_SIZE),
+                                        height: Val::Px(TILE_SIZE),
+                                        justify_content: JustifyContent::Center,
+                                        align_items: AlignItems::Center,
+                                        ..default()
+                                    },
+                                    background_color: Color::NONE.into(),
+                                    ..default()
+                                });
+                            }
+                        }
+                    }
                 }).with_children(|parent| {
-                    parent.spawn((ButtonBundle {
-                        style: Style {
-                            width: Val::Px(TILE_SIZE),
-                            height: Val::Px(TILE_SIZE),
-                            justify_content: JustifyContent::Center,
-                            align_items: AlignItems::Center,
-                            ..default()
-                        },
-                        background_color: Color::NONE.into(),
-                        ..default()
-                    }, 
-                    MenuButton{
-                        button_effect: ButtonEffect::PickUp,
-                        pickup_object: EntityType::ChickenFood,
-                        level: None,
-                        hovering: false, 
-                        hover_time: 0.0,
-                        ..default()
-                    })).with_children(|parent| {
-                        parent.spawn(AtlasImageBundle {
-                            texture_atlas: sprites.sprites["Food"].to_owned(),
-                            texture_atlas_image: UiTextureAtlasImage{index:0,..default()},
-                            style: Style {
-                                width: Val::Percent(100.0),
-                                height: Val::Percent(100.0),
-                                position_type: PositionType::Absolute,
-                                ..Default::default()
-                            },
-                            background_color: Color::WHITE.into(),
-                            ..Default::default()
-                        });
-                        parent.spawn((AtlasImageBundle {
-                            texture_atlas: sprites.sprites["Disabled"].to_owned(),
-                            texture_atlas_image: UiTextureAtlasImage{index:0,..default()},
-                            style: Style {
-                                width: Val::Percent(100.0),
-                                height: Val::Percent(100.0),
-                                position_type: PositionType::Absolute,
-                                ..Default::default()
-                            },
-                            visibility: Visibility::Hidden,
-                            background_color: Color::WHITE.into(),
-                            ..Default::default()
-                        }, ButtonDisabled { entity: EntityType::ChickenFood }));
-                    });
-                }).with_children(|parent| {
-                    parent.spawn((ButtonBundle {
-                        style: Style {
-                            width: Val::Px(TILE_SIZE),
-                            height: Val::Px(TILE_SIZE),
-                            justify_content: JustifyContent::Center,
-                            align_items: AlignItems::Center,
-                            ..default()
-                        },
-                        background_color: Color::NONE.into(),
-                        ..default()
-                    }, 
-                    MenuButton{
-                        button_effect: ButtonEffect::PickUp,
-                        pickup_object: EntityType::HorseFood,
-                        level: None,
-                        hovering: false, 
-                        hover_time: 0.0,
-                        ..default()
-                    })).with_children(|parent| {
-                        parent.spawn(AtlasImageBundle {
-                            texture_atlas: sprites.sprites["Food"].to_owned(),
-                            texture_atlas_image: UiTextureAtlasImage{index:1,..default()},
-                            style: Style {
-                                width: Val::Percent(100.0),
-                                height: Val::Percent(100.0),
-                                position_type: PositionType::Absolute,
-                                ..Default::default()
-                            },
-                            background_color: Color::WHITE.into(),
-                            ..Default::default()
-                        });
-                        parent.spawn((AtlasImageBundle {
-                            texture_atlas: sprites.sprites["Disabled"].to_owned(),
-                            texture_atlas_image: UiTextureAtlasImage{index:0,..default()},
-                            style: Style {
-                                width: Val::Percent(100.0),
-                                height: Val::Percent(100.0),
-                                position_type: PositionType::Absolute,
-                                ..Default::default()
-                            },
-                            visibility: Visibility::Hidden,
-                            background_color: Color::WHITE.into(),
-                            ..Default::default()
-                        }, ButtonDisabled { entity: EntityType::HorseFood }));
-                    });
-                }).with_children(|parent| {
-                    parent.spawn((ButtonBundle {
-                        style: Style {
-                            width: Val::Px(TILE_SIZE),
-                            height: Val::Px(TILE_SIZE),
-                            justify_content: JustifyContent::Center,
-                            align_items: AlignItems::Center,
-                            ..default()
-                        },
-                        background_color: Color::NONE.into(),
-                        ..default()
-                    }, 
-                    MenuButton{
-                        button_effect: ButtonEffect::PickUp,
-                        pickup_object: EntityType::PigFood,
-                        level: None,
-                        hovering: false, 
-                        hover_time: 0.0,
-                        ..default()
-                    })).with_children(|parent| {
-                        parent.spawn(AtlasImageBundle {
-                            texture_atlas: sprites.sprites["Food"].to_owned(),
-                            texture_atlas_image: UiTextureAtlasImage{index:2,..default()},
-                            style: Style {
-                                width: Val::Percent(100.0),
-                                height: Val::Percent(100.0),
-                                position_type: PositionType::Absolute,
-                                ..Default::default()
-                            },
-                            background_color: Color::WHITE.into(),
-                            ..Default::default()
-                        });
-                        parent.spawn((AtlasImageBundle {
-                            texture_atlas: sprites.sprites["Disabled"].to_owned(),
-                            texture_atlas_image: UiTextureAtlasImage{index:0,..default()},
-                            style: Style {
-                                width: Val::Percent(100.0),
-                                height: Val::Percent(100.0),
-                                position_type: PositionType::Absolute,
-                                ..Default::default()
-                            },
-                            visibility: Visibility::Hidden,
-                            background_color: Color::WHITE.into(),
-                            ..Default::default()
-                        }, ButtonDisabled { entity: EntityType::PigFood }));
-                    });
-                }).with_children(|parent| {
-                    parent.spawn((ButtonBundle {
-                        style: Style {
-                            width: Val::Px(TILE_SIZE),
-                            height: Val::Px(TILE_SIZE),
-                            justify_content: JustifyContent::Center,
-                            align_items: AlignItems::Center,
-                            ..default()
-                        },
-                        background_color: Color::NONE.into(),
-                        ..default()
-                    }, 
-                    MenuButton{
-                        button_effect: ButtonEffect::PickUp,
-                        pickup_object: EntityType::AllFood,
-                        level: None,
-                        hovering: false, 
-                        hover_time: 0.0,
-                        ..default()
-                    })).with_children(|parent| {
-                        parent.spawn(AtlasImageBundle {
-                            texture_atlas: sprites.sprites["Food"].to_owned(),
-                            texture_atlas_image: UiTextureAtlasImage{index:3,..default()},
-                            style: Style {
-                                width: Val::Percent(100.0),
-                                height: Val::Percent(100.0),
-                                position_type: PositionType::Absolute,
-                                ..Default::default()
-                            },
-                            background_color: Color::WHITE.into(),
-                            ..Default::default()
-                        });
-                        parent.spawn((AtlasImageBundle {
-                            texture_atlas: sprites.sprites["Disabled"].to_owned(),
-                            texture_atlas_image: UiTextureAtlasImage{index:0,..default()},
-                            style: Style {
-                                width: Val::Percent(100.0),
-                                height: Val::Percent(100.0),
-                                position_type: PositionType::Absolute,
-                                ..Default::default()
-                            },
-                            visibility: Visibility::Hidden,
-                            background_color: Color::WHITE.into(),
-                            ..Default::default()
-                        }, ButtonDisabled { entity: EntityType::AllFood }));
-                    });
-                }).with_children(|parent| {
-                    parent.spawn((ButtonBundle {
-                        style: Style {
-                            width: Val::Px(TILE_SIZE),
-                            height: Val::Px(TILE_SIZE),
-                            justify_content: JustifyContent::Center,
-                            align_items: AlignItems::Center,
-                            ..default()
-                        },
-                        background_color: Color::NONE.into(),
-                        ..default()
-                    }, 
-                    MenuButton{
-                        button_effect: ButtonEffect::PickUp,
-                        pickup_object: EntityType::None,
-                        level: None,
-                        hovering: false, 
-                        hover_time: 0.0,
-                        ..default()
-                    })).with_children(|parent| {
-                        parent.spawn(TextBundle::from_section(
-                            "",
-                            text_style.to_owned()
-                        ));
-                    });
-                }).with_children(|parent| {
-                    parent.spawn((ButtonBundle {
-                        style: Style {
-                            width: Val::Px(TILE_SIZE),
-                            height: Val::Px(TILE_SIZE),
-                            justify_content: JustifyContent::Center,
-                            align_items: AlignItems::Center,
-                            ..default()
-                        },
-                        background_color: Color::NONE.into(),
-                        ..default()
-                    }, 
-                    MenuButton{
-                        button_effect: ButtonEffect::PickUp,
-                        pickup_object: EntityType::None,
-                        level: None,
-                        hovering: false, 
-                        hover_time: 0.0,
-                        ..default()
-                    })).with_children(|parent| {
-                        parent.spawn(TextBundle::from_section(
-                            "",
-                            text_style.to_owned()
-                        ));
-                    });
-                }).with_children(|parent| {
-                    parent.spawn((ButtonBundle {
-                        style: Style {
-                            width: Val::Px(TILE_SIZE),
-                            height: Val::Px(TILE_SIZE),
-                            justify_content: JustifyContent::Center,
-                            align_items: AlignItems::Center,
-                            ..default()
-                        },
-                        background_color: Color::NONE.into(),
-                        ..default()
-                    }, 
-                    MenuButton{
-                        button_effect: ButtonEffect::PickUp,
-                        pickup_object: EntityType::None,
-                        level: None,
-                        hovering: false, 
-                        hover_time: 0.0,
-                        ..default()
-                    })).with_children(|parent| {
-                        parent.spawn(TextBundle::from_section(
-                            "",
-                            text_style.to_owned()
-                        ));
-                    });
-                }).with_children(|parent| {
-                    parent.spawn((ButtonBundle {
-                        style: Style {
-                            width: Val::Px(TILE_SIZE),
-                            height: Val::Px(TILE_SIZE),
-                            justify_content: JustifyContent::Center,
-                            align_items: AlignItems::Center,
-                            ..default()
-                        },
-                        background_color: Color::NONE.into(),
-                        ..default()
-                    }, 
-                    MenuButton{
-                        button_effect: ButtonEffect::PickUp,
-                        pickup_object: EntityType::None,
-                        level: None,
-                        hovering: false, 
-                        hover_time: 0.0,
-                        ..default()
-                    })).with_children(|parent| {
-                        parent.spawn(TextBundle::from_section(
-                            "",
-                            text_style.to_owned()
-                        ));
-                    });
-                }).with_children(|parent| {
-                    parent.spawn((ButtonBundle {
-                        style: Style {
-                            width: Val::Px(TILE_SIZE),
-                            height: Val::Px(TILE_SIZE),
-                            justify_content: JustifyContent::Center,
-                            align_items: AlignItems::Center,
-                            ..default()
-                        },
-                        background_color: Color::NONE.into(),
-                        ..default()
-                    }, 
-                    MenuButton{
-                        button_effect: ButtonEffect::PickUp,
-                        pickup_object: EntityType::None,
-                        level: None,
-                        hovering: false, 
-                        hover_time: 0.0,
-                        ..default()
-                    })).with_children(|parent| {
-                        parent.spawn(TextBundle::from_section(
-                            "",
-                            text_style.to_owned()
-                        ));
-                    });
-                }).with_children(|parent| {
-                    parent.spawn(ButtonBundle {
-                        style: Style {
-                            width: Val::Px(TILE_SIZE),
-                            height: Val::Px(TILE_SIZE),
-                            justify_content: JustifyContent::Center,
-                            align_items: AlignItems::Center,
-                            ..default()
-                        },
-                        background_color: Color::NONE.into(),
-                        ..default()
-                    }).with_children(|parent| {
-                        parent.spawn(TextBundle::from_section(
-                            "",
-                            text_style.to_owned()
-                        ));
-                    });
-                })/*.with_children(|parent| {
-                    parent.spawn((ButtonBundle {
-                        style: Style {
-                            left: Val::Px(2.0),
-                            width: Val::Px(TILE_SIZE),
-                            height: Val::Px(TILE_SIZE),
-                            justify_content: JustifyContent::Center,
-                            align_items: AlignItems::Center,
-                            ..default()
-                        },
-                        background_color: Color::NONE.into(),
-                        ..default()
-                    }, 
-                    MenuButton{
-                        button_effect: ButtonEffect::None,
-                        pickup_object: EntityType::None,
-                        level: None,
-                        hovering: false, 
-                        hover_time: 0.0,
-                        ..default()
-                    })).with_children(|parent| {
-                        let mut text = TextBundle::from_section(
-                            "A:",
-                            small_text_style.to_owned()
-                        );
-                        text.text.alignment = TextAlignment::Center;
-                        parent.spawn((text, Description{part:1}));
-                    });
-                }).with_children(|parent| {
-                    parent.spawn((ButtonBundle {
-                        style: Style {
-                            left: Val::Px(2.0),
-                            width: Val::Px(TILE_SIZE),
-                            height: Val::Px(TILE_SIZE),
-                            justify_content: JustifyContent::Center,
-                            align_items: AlignItems::Center,
-                            ..default()
-                        },
-                        background_color: Color::NONE.into(),
-                        ..default()
-                    }, 
-                    MenuButton{
-                        button_effect: ButtonEffect::None,
-                        pickup_object: EntityType::None,
-                        level: None,
-                        hovering: false, 
-                        hover_time: 0.0,
-                        ..default()
-                    })).with_children(|parent| {
-                        parent.spawn((AtlasImageBundle {
-                            texture_atlas: sprites.sprites["Food"].to_owned(),
-                            texture_atlas_image: UiTextureAtlasImage{index:0,..default()},
-                            style: Style {
-                                width: Val::Percent(100.0),
-                                height: Val::Percent(100.0),
-                                position_type: PositionType::Absolute,
-                                ..Default::default()
-                            },
-                            background_color: Color::WHITE.into(),
-                            ..Default::default()
-                        }, Description{part:2}));
-                    });
-                })*/.with_children(|parent| {
                     parent.spawn((ButtonBundle {
                         style: Style {
                             left: Val::Px(2.0),
@@ -1533,7 +1321,6 @@ pub fn game_ui_setup(mut commands: Commands,
                     }, 
                     MenuButton{
                         button_effect: ButtonEffect::None,
-                        pickup_object: EntityType::None,
                         level: None,
                         hovering: false, 
                         hover_time: 0.0,
@@ -1592,7 +1379,6 @@ pub fn game_ui_setup(mut commands: Commands,
                         }, 
                         MenuButton{
                             button_effect: ButtonEffect::Pause,
-                            pickup_object: EntityType::None,
                             level: None,
                             hovering: false, 
                             hover_time: 0.0,
@@ -1619,7 +1405,6 @@ pub fn game_ui_setup(mut commands: Commands,
                         }, 
                         MenuButton{
                             button_effect: ButtonEffect::Undo,
-                            pickup_object: EntityType::None,
                             level: None,
                             hovering: false, 
                             hover_time: 0.0,
@@ -1658,7 +1443,6 @@ pub fn game_ui_setup(mut commands: Commands,
                         }, 
                         MenuButton{
                             button_effect: ButtonEffect::Start,
-                            pickup_object: EntityType::None,
                             level: None,
                             hovering: false, 
                             hover_time: 0.0,
@@ -1674,6 +1458,14 @@ pub fn game_ui_setup(mut commands: Commands,
             });
         }).id()
     ];
+}
+
+fn editor_ui_setup(mut commands: Commands, 
+    asset_server: Res<AssetServer>, 
+    sprites: Res<Sprites>, 
+    ui_images: Res<UIImages>, 
+    mut menu_data: ResMut<MenuData>,){
+    
 }
 
 pub fn button_system(
@@ -1764,20 +1556,29 @@ pub fn button_system(
                         simulating.win = false;
                         saving.saving = SaveStage::Undo;
                     }
-                    ButtonEffect::PickUp => {
+                    ButtonEffect::PickUp(pickup_object, limited) => {
                         if let Ok(mut cursor) = cursor_q.get_single_mut() {
                             let mut can_pick = true;
-                            for entity in &entity_q {
-                                if entity.entity_type == menu_button.pickup_object {
-                                    can_pick = false;
-                                    break;
+                            if limited {
+                                for entity in &entity_q {
+                                    if entity.entity_type == pickup_object {
+                                        can_pick = false;
+                                        break;
+                                    }
                                 }
                             }
                             if can_pick {
-                                cursor.holding = menu_button.pickup_object;
+                                cursor.holding = pickup_object;
                                 cursor.drag_drop = true;
                                 cursor.starting_pos = cursor.pos;
                             }
+                        }
+                    }
+                    ButtonEffect::Place(tile) => {
+                        if let Ok(mut cursor) = cursor_q.get_single_mut() {
+                            //cursor.holding = pickup_object;
+                            //cursor.drag_drop = true;
+                            cursor.starting_pos = cursor.pos;
                         }
                     }
                     ButtonEffect::Settings => {}
@@ -1827,7 +1628,6 @@ pub fn button_system(
                                 }, 
                                 MenuButton{
                                     button_effect: ButtonEffect::ExitCredits,
-                                    pickup_object: EntityType::None,
                                     level: None,
                                     hovering: false, 
                                     hover_time: 0.0,
@@ -1849,6 +1649,10 @@ pub fn button_system(
                         for prompt in &screencover_q {
                             commands.entity(prompt).despawn();
                         }
+                    }
+                    ButtonEffect::EditorPageLeft => {
+                    }
+                    ButtonEffect::EditorPageRight => {
                     }
                     _ => {}
                 }

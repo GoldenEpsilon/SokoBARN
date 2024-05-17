@@ -161,7 +161,7 @@ fn main() {
         .add_systems(Update, par_text_system.run_if(resource_exists::<Field>()))
 
         //Gameplay
-        .add_systems(OnEnter(GameState::Gameplay), (setup_level, game_ui_setup).run_if(common_conditions::not(resource_exists::<Field>())))
+        .add_systems(OnEnter(GameState::Gameplay), (setup_level.run_if(common_conditions::not(resource_exists::<Field>())), apply_deferred, saving_system, game_ui_setup).chain())
         .add_systems(Update, saving_system.run_if(in_state(GameState::Gameplay).or_else(in_state(GameState::Pause))))
         .add_systems(Update, simulate.run_if(in_state(GameState::Gameplay)))
         .add_systems(Update, weather_system.run_if(in_state(GameState::Gameplay)))
