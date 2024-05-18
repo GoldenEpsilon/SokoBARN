@@ -39,10 +39,23 @@ pub enum GameState {
 
 #[derive(Component)]
 pub struct Cursor {
-    pub holding: EntityType,
-    pub drag_drop: bool,
+    pub holding: GameObjectType,
+    pub drag_drop: CursorState,
     pub starting_pos: Vec2,
     pub pos: Vec2
+}
+
+pub enum GameObjectType {
+    None,
+    Entity(EntityType),
+    Tile(TileType)
+}
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+pub enum CursorState {
+    Idle,
+    Holding,
+    Placing
 }
 
 pub static CURSOR_MIN_MOVE_DIST: f32 = 12.0;
@@ -469,7 +482,7 @@ fn setup(
         },
         z_index: ZIndex::Global(15),
         ..default()
-    }, Cursor{holding: EntityType::None, drag_drop: true, starting_pos: Vec2::splat(-100.0), pos: Vec2::splat(-100.0)})
+    }, Cursor{holding: GameObjectType::None, drag_drop: CursorState::Idle, starting_pos: Vec2::splat(-100.0), pos: Vec2::splat(-100.0)})
     ).with_children(|parent| {
         parent.spawn((AtlasImageBundle {
             texture_atlas: texture_atlases.add(TextureAtlas::from_grid(asset_server.load("Sprites/Misc/sokobarn-Flags.png"), Vec2::new(32.0, 32.0), 4, 24, None, None)),
@@ -609,7 +622,7 @@ pub fn cursor(
                                         sprite.index = 0;
                                     }
                                 } else {
-                                    if (buttons.pressed(MouseButton::Left) || buttons.pressed(MouseButton::Right)) == cursor.drag_drop {
+                                    if (buttons.pressed(MouseButton::Left) || buttons.pressed(MouseButton::Right)) != (cursor.drag_drop == CursorState::Idle) {
                                         sprite.index = 3;
                                     }else{
                                         sprite.index = 2;
@@ -618,6 +631,7 @@ pub fn cursor(
                             }
                             1 => {
                                 *visible = Visibility::Visible;
+                                
                                 match cursor.holding {
                                     EntityType::ChickenFood => {sprite.index = 0;}
                                     EntityType::HorseFood => {sprite.index = 1;}

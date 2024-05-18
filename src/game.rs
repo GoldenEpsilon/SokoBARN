@@ -215,11 +215,42 @@ pub enum TileType {
     Mud,
     MuddyRocks,
     Ditch,
-    Corral,
     ChickenPen,
     PigPen,
     GoatPen,
     HorsePen,
+    Corral,
+}
+
+impl TileType {
+    pub fn icon_atlas(&self, sprites: &Res<Sprites>) -> Handle<TextureAtlas> {
+        match self {
+            TileType::Grass => sprites.sprites["Grass"].clone(),
+            TileType::Fence => sprites.sprites["Fence"].clone(),
+            TileType::Rocks => sprites.sprites["Rocks"].clone(),
+            TileType::Mud => sprites.sprites["Mud"].clone(),
+            TileType::MuddyRocks => sprites.sprites["MuddyRocks"].clone(),
+            TileType::Ditch => sprites.sprites["Ditch"].clone(),
+            TileType::ChickenPen => sprites.sprites["Pens"].clone(),
+            TileType::PigPen => sprites.sprites["Pens"].clone(),
+            TileType::GoatPen => sprites.sprites["Pens"].clone(),
+            TileType::HorsePen => sprites.sprites["Pens"].clone(),
+            TileType::Corral => sprites.sprites["Pens"].clone(),
+            _ => sprites.sprites["Chicken"].clone(),
+        }
+    }
+    pub fn icon_texture_index(&self) -> UiTextureAtlasImage{
+        match self {
+            TileType::Grass => UiTextureAtlasImage{index:0,..default()},
+            TileType::Fence => UiTextureAtlasImage{index:4,..default()},
+            TileType::ChickenPen => UiTextureAtlasImage{index:5,..default()},
+            TileType::PigPen => UiTextureAtlasImage{index:6,..default()},
+            TileType::GoatPen => UiTextureAtlasImage{index:7,..default()},
+            TileType::HorsePen => UiTextureAtlasImage{index:8,..default()},
+            TileType::Corral => UiTextureAtlasImage{index:9,..default()},
+            _ => UiTextureAtlasImage{index:0,..default()},
+        }
+    }
 }
 
 #[derive(PartialEq)]
@@ -2033,18 +2064,19 @@ pub fn mouse_controls(
             let mut cursor_holding = false;
             if let Ok(mut cursor) = q_cursor.get_single_mut() {
                 if !simulation.simulating && !illegal_y_pos {
-                    if cursor.holding != EntityType::None 
-                        && field.get_entity_type(tile_pos_x, tile_pos_y, &q_entity) == None
-                        && (buttons.pressed(MouseButton::Left) || buttons.pressed(MouseButton::Right)) != cursor.drag_drop 
+                    if let GameObjectType::Entity(entity) = cursor.holding {
+                        if field.get_entity_type(tile_pos_x, tile_pos_y, &q_entity) == None
+                        && (buttons.pressed(MouseButton::Left) || buttons.pressed(MouseButton::Right)) == (cursor.drag_drop == CursorState::Idle)
                         && (Vec2::distance(cursor.pos, cursor.starting_pos) > CURSOR_MIN_MOVE_DIST || buttons.just_pressed(MouseButton::Left)) {
-                        match field.get_tile_type(tile_pos_x, tile_pos_y, &q_tile) {
-                            Some(TileType::Fence) | Some(TileType::Ditch) => {}
-                            _ => {
-                                field.set_entity(&mut commands, &sprites, cursor.holding, tile_pos_x, tile_pos_y);
-                                cursor.holding = EntityType::None;
+                            match field.get_tile_type(tile_pos_x, tile_pos_y, &q_tile) {
+                                Some(TileType::Fence) | Some(TileType::Ditch) => {}
+                                _ => {
+                                    field.set_entity(&mut commands, &sprites, entity, tile_pos_x, tile_pos_y);
+                                    cursor.holding = GameObjectType::None;
+                                }
                             }
+                            cursor_holding = true;
                         }
-                        cursor_holding = true;
                     }else if buttons.just_released(MouseButton::Left) && Vec2::distance(cursor.pos, cursor.starting_pos) < CURSOR_MIN_MOVE_DIST {
                         cursor.drag_drop = false;
                     }else if cursor.holding == EntityType::None {

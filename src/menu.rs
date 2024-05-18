@@ -1055,7 +1055,7 @@ pub fn game_ui_setup(mut commands: Commands,
     }
     
     let buttons = if field.editor_mode {
-        vec![
+        /*vec![
             ButtonEffect::PickUp(EntityType::ChickenFood, true), 
             ButtonEffect::PickUp(EntityType::HorseFood, true),
             ButtonEffect::PickUp(EntityType::PigFood, true),
@@ -1068,8 +1068,8 @@ pub fn game_ui_setup(mut commands: Commands,
             ButtonEffect::None,
             ButtonEffect::EditorPageLeft,
             ButtonEffect::EditorPageRight,
-        ]
-        /*vec![
+        ]*/
+        vec![
             ButtonEffect::Place(TileType::Grass), 
             ButtonEffect::Place(TileType::Fence), 
             ButtonEffect::Place(TileType::Rocks), 
@@ -1078,13 +1078,13 @@ pub fn game_ui_setup(mut commands: Commands,
             ButtonEffect::Place(TileType::Ditch), 
             ButtonEffect::Place(TileType::Corral), 
             ButtonEffect::Place(TileType::ChickenPen), 
-            ButtonEffect::Place(TileType::PigPen), 
-            ButtonEffect::Place(TileType::GoatPen), 
-            ButtonEffect::Place(TileType::HorsePen), 
-            ButtonEffect::None,
+            //ButtonEffect::Place(TileType::PigPen), 
+            //ButtonEffect::Place(TileType::GoatPen), 
+            //ButtonEffect::Place(TileType::HorsePen), 
+            //ButtonEffect::None,
             ButtonEffect::EditorPageLeft,
             ButtonEffect::EditorPageRight,
-        ]*/
+        ]
     } else {
         vec![
             ButtonEffect::PickUp(EntityType::ChickenFood, true), 
@@ -1227,8 +1227,8 @@ pub fn game_ui_setup(mut commands: Commands,
                                     ..default()
                                 })).with_children(|parent| {
                                     parent.spawn(AtlasImageBundle {
-                                        texture_atlas: entity_type.texture_atlas(&sprites),
-                                        texture_atlas_image: entity_type.texture_index(),
+                                        texture_atlas: tile_type.icon_atlas(&sprites),
+                                        texture_atlas_image: tile_type.icon_texture_index(),
                                         style: Style {
                                             width: Val::Percent(100.0),
                                             height: Val::Percent(100.0),
@@ -1568,16 +1568,16 @@ pub fn button_system(
                                 }
                             }
                             if can_pick {
-                                cursor.holding = pickup_object;
-                                cursor.drag_drop = true;
+                                cursor.holding = GameObjectType::Entity(pickup_object);
+                                cursor.drag_drop = CursorState::Holding;
                                 cursor.starting_pos = cursor.pos;
                             }
                         }
                     }
                     ButtonEffect::Place(tile) => {
                         if let Ok(mut cursor) = cursor_q.get_single_mut() {
-                            //cursor.holding = pickup_object;
-                            //cursor.drag_drop = true;
+                            cursor.holding = GameObjectType::Tile(tile);
+                            cursor.drag_drop = CursorState::Placing;
                             cursor.starting_pos = cursor.pos;
                         }
                     }
@@ -1734,7 +1734,7 @@ pub fn game_cleanup(
     simulating.simulating = false;
     simulating.simulation_step = EntityType::None;
     if let Ok(mut cursor) = q_cursor.get_single_mut() {
-        cursor.holding = EntityType::None;
+        cursor.holding = GameObjectType::None;
     }
     for entity in &menu_data.button_entities {
         commands.entity(*entity).despawn_recursive();
