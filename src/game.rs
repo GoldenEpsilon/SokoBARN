@@ -193,19 +193,44 @@ impl EntityType {
             _ => sprites.sprites["Chicken"].clone(),
         }
     }
-    pub fn texture_index(&self) -> UiTextureAtlasImage{
+    pub fn texture_index(&self) -> usize{
         match self {
-            EntityType::ChickenFood => UiTextureAtlasImage{index:0,..default()},
-            EntityType::PigFood => UiTextureAtlasImage{index:1,..default()},
-            EntityType::HorseFood => UiTextureAtlasImage{index:2,..default()},
-            EntityType::AllFood => UiTextureAtlasImage{index:3,..default()},
-            EntityType::WagonFood => UiTextureAtlasImage{index:4,..default()},
-            _ => UiTextureAtlasImage{index:0,..default()},
+            EntityType::ChickenFood => 0,
+            EntityType::PigFood => 1,
+            EntityType::HorseFood => 2,
+            EntityType::AllFood => 3,
+            EntityType::WagonFood => 4,
+            _ => 0,
+        }
+    }
+    pub fn icon_atlas(&self, sprites: &Res<Sprites>) -> Handle<TextureAtlas>{
+        match self {
+            EntityType::Chicken => sprites.sprites["Chicken"].clone(),
+            EntityType::Pig => sprites.sprites["Pig"].clone(),
+            EntityType::Horse => sprites.sprites["Horse"].clone(),
+            EntityType::Goat => sprites.sprites["Goat"].clone(),
+            EntityType::Wagon => sprites.sprites["Wagon"].clone(),
+            EntityType::ChickenFood => sprites.sprites["Food"].clone(),
+            EntityType::PigFood => sprites.sprites["Food"].clone(),
+            EntityType::HorseFood => sprites.sprites["Food"].clone(),
+            EntityType::AllFood => sprites.sprites["Food"].clone(),
+            EntityType::WagonFood => sprites.sprites["Food"].clone(),
+            _ => sprites.sprites["Chicken"].clone(),
+        }
+    }
+    pub fn icon_index(&self) -> usize{
+        match self {
+            EntityType::ChickenFood => 0,
+            EntityType::PigFood => 1,
+            EntityType::HorseFood => 2,
+            EntityType::AllFood => 3,
+            EntityType::WagonFood => 4,
+            _ => 0,
         }
     }
 }
 
-#[derive(PartialEq)]
+#[derive(Eq, PartialEq)]
 #[derive(Clone, Copy)]
 #[derive(Serialize, Deserialize, Debug)]
 pub enum TileType {
@@ -239,16 +264,16 @@ impl TileType {
             _ => sprites.sprites["Chicken"].clone(),
         }
     }
-    pub fn icon_texture_index(&self) -> UiTextureAtlasImage{
+    pub fn icon_index(&self) -> usize{
         match self {
-            TileType::Grass => UiTextureAtlasImage{index:0,..default()},
-            TileType::Fence => UiTextureAtlasImage{index:4,..default()},
-            TileType::ChickenPen => UiTextureAtlasImage{index:5,..default()},
-            TileType::PigPen => UiTextureAtlasImage{index:6,..default()},
-            TileType::GoatPen => UiTextureAtlasImage{index:7,..default()},
-            TileType::HorsePen => UiTextureAtlasImage{index:8,..default()},
-            TileType::Corral => UiTextureAtlasImage{index:9,..default()},
-            _ => UiTextureAtlasImage{index:0,..default()},
+            TileType::Grass => 0,
+            TileType::Fence => 4,
+            TileType::ChickenPen => 5,
+            TileType::PigPen => 6,
+            TileType::GoatPen => 7,
+            TileType::HorsePen => 8,
+            TileType::Corral => 9,
+            _ => 0,
         }
     }
 }
@@ -2061,43 +2086,53 @@ pub fn mouse_controls(
             if (tile.y + TILE_OFFSET_Y).round() < 0.0 {
                 true
             }else{false};
-            let mut cursor_holding = false;
             if let Ok(mut cursor) = q_cursor.get_single_mut() {
                 if !simulation.simulating && !illegal_y_pos {
-                    if let GameObjectType::Entity(entity) = cursor.holding {
-                        if field.get_entity_type(tile_pos_x, tile_pos_y, &q_entity) == None
-                        && (buttons.pressed(MouseButton::Left) || buttons.pressed(MouseButton::Right)) == (cursor.drag_drop == CursorState::Idle)
-                        && (Vec2::distance(cursor.pos, cursor.starting_pos) > CURSOR_MIN_MOVE_DIST || buttons.just_pressed(MouseButton::Left)) {
-                            match field.get_tile_type(tile_pos_x, tile_pos_y, &q_tile) {
-                                Some(TileType::Fence) | Some(TileType::Ditch) => {}
-                                _ => {
-                                    field.set_entity(&mut commands, &sprites, entity, tile_pos_x, tile_pos_y);
-                                    cursor.holding = GameObjectType::None;
+                    if !(buttons.pressed(MouseButton::Left) || buttons.pressed(MouseButton::Right)) && (cursor.drag_drop == CursorState::Holding)
+                    && (Vec2::distance(cursor.pos, cursor.starting_pos) < CURSOR_MIN_MOVE_DIST) {
+                        cursor.drag_drop = CursorState::Placing
+                    }
+                    if (!(buttons.pressed(MouseButton::Left) || buttons.pressed(MouseButton::Right)) && (cursor.drag_drop == CursorState::Holding)
+                    && (Vec2::distance(cursor.pos, cursor.starting_pos) > CURSOR_MIN_MOVE_DIST)) || (buttons.just_pressed(MouseButton::Left) && cursor.drag_drop == CursorState::Placing) {
+                        if field.can_get_tile(tile_pos_x, tile_pos_y) {
+                            if let GameObjectType::Entity(entity) = cursor.holding {
+                                if field.get_entity_type(tile_pos_x, tile_pos_y, &q_entity) == None {
+                                    match field.get_tile_type(tile_pos_x, tile_pos_y, &q_tile) {
+                                        Some(TileType::Fence) | Some(TileType::Ditch) => {}
+                                        _ => {
+                                            field.set_entity(&mut commands, &sprites, entity, tile_pos_x, tile_pos_y);
+                                            if !cursor.painting {cursor.holding = GameObjectType::None;}
+                                        }
+                                    }
                                 }
                             }
-                            cursor_holding = true;
+                            if field.can_get_tile(tile_pos_x, tile_pos_y) {
+                                if let GameObjectType::Tile(tile) = cursor.holding {
+                                    field.set_tile(&mut commands, &sprites, tile, tile_pos_x, tile_pos_y);
+                                    if !cursor.painting {cursor.holding = GameObjectType::None;}
+                                }
+                            }
+                        } else if cursor.painting {
+                            cursor.holding = GameObjectType::None;
                         }
-                    }else if buttons.just_released(MouseButton::Left) && Vec2::distance(cursor.pos, cursor.starting_pos) < CURSOR_MIN_MOVE_DIST {
-                        cursor.drag_drop = false;
-                    }else if cursor.holding == EntityType::None {
+                    }else if buttons.just_released(MouseButton::Left) && Vec2::distance(cursor.pos, cursor.starting_pos) < CURSOR_MIN_MOVE_DIST && cursor.drag_drop == CursorState::Placing {
+                        cursor.drag_drop = CursorState::Idle;
+                    }else if cursor.holding == GameObjectType::None {
                         if buttons.just_pressed(MouseButton::Left) {
                             let food = field.get_entity_type(tile_pos_x, tile_pos_y, &q_entity);
                             match food {
                                 Some(EntityType::ChickenFood) | Some(EntityType::HorseFood) | Some(EntityType::PigFood) | Some(EntityType::AllFood) | Some(EntityType::WagonFood) => {
-                                    cursor.holding = food.unwrap();
+                                    cursor.holding = GameObjectType::Entity(food.unwrap());
                                     if let Some(old_entity) = field.tiles[tile_pos_x][tile_pos_y].2 {
                                         commands.entity(old_entity).despawn_recursive();
                                         field.tiles[tile_pos_x][tile_pos_y].2 = None;
                                     }
                                     cursor.starting_pos = cursor.pos;
-                                    cursor_holding = true;
                                 }
                                 _ => {}
                             }
-                            cursor.drag_drop = true;
+                            cursor.drag_drop = CursorState::Holding;
                         }
-                    }else{
-                        cursor_holding = true;
                     }
                 }
             }
@@ -2135,39 +2170,6 @@ pub fn mouse_controls(
                                     Some(TileType::Corral) => {"Pen (Cart): Goal. A place for Cart maintenance and upkeep."}
                                     _ => {""}
                                 }.to_owned();
-                            }
-                            if field.editor_mode {
-                                if buttons.just_pressed(MouseButton::Left) && !cursor_holding {
-                                    match field.get_tile_type(tile_pos_x, tile_pos_y, &q_tile) {
-                                        Some(TileType::Grass) => {field.set_tile(&mut commands, &sprites, TileType::Fence, tile_pos_x, tile_pos_y);}
-                                        Some(TileType::Fence) => {field.set_tile(&mut commands, &sprites, TileType::Mud, tile_pos_x, tile_pos_y);}
-                                        Some(TileType::Mud) => {field.set_tile(&mut commands, &sprites, TileType::Rocks, tile_pos_x, tile_pos_y);}
-                                        Some(TileType::Rocks) => {field.set_tile(&mut commands, &sprites, TileType::MuddyRocks, tile_pos_x, tile_pos_y);}
-                                        Some(TileType::MuddyRocks) => {field.set_tile(&mut commands, &sprites, TileType::Corral, tile_pos_x, tile_pos_y);}
-                                        Some(TileType::Corral) => {field.set_tile(&mut commands, &sprites, TileType::ChickenPen, tile_pos_x, tile_pos_y);}
-                                        Some(TileType::ChickenPen) => {field.set_tile(&mut commands, &sprites, TileType::HorsePen, tile_pos_x, tile_pos_y);}
-                                        Some(TileType::HorsePen) => {field.set_tile(&mut commands, &sprites, TileType::PigPen, tile_pos_x, tile_pos_y);}
-                                        Some(TileType::PigPen) => {field.set_tile(&mut commands, &sprites, TileType::GoatPen, tile_pos_x, tile_pos_y);}
-                                        Some(TileType::GoatPen) => {field.set_tile(&mut commands, &sprites, TileType::Ditch, tile_pos_x, tile_pos_y);}
-                                        Some(TileType::Ditch) => {field.set_tile(&mut commands, &sprites, TileType::Grass, tile_pos_x, tile_pos_y);}
-                                        _ => {}
-                                    }
-                                }
-                                if buttons.just_pressed(MouseButton::Right) {
-                                    match field.get_entity_type(tile_pos_x, tile_pos_y, &q_entity) {
-                                        Some(EntityType::Chicken) => {field.set_entity(&mut commands, &sprites, EntityType::Horse, tile_pos_x, tile_pos_y);}
-                                        Some(EntityType::Horse) => {field.set_entity(&mut commands, &sprites, EntityType::Pig, tile_pos_x, tile_pos_y);}
-                                        Some(EntityType::Pig) => {field.set_entity(&mut commands, &sprites, EntityType::Goat, tile_pos_x, tile_pos_y);}
-                                        Some(EntityType::Goat) => {field.set_entity(&mut commands, &sprites, EntityType::Wagon, tile_pos_x, tile_pos_y);}
-                                        Some(EntityType::Wagon) => {field.set_entity(&mut commands, &sprites, EntityType::ChickenFood, tile_pos_x, tile_pos_y);}
-                                        Some(EntityType::ChickenFood) => {field.set_entity(&mut commands, &sprites, EntityType::HorseFood, tile_pos_x, tile_pos_y);}
-                                        Some(EntityType::HorseFood) => {field.set_entity(&mut commands, &sprites, EntityType::PigFood, tile_pos_x, tile_pos_y);}
-                                        Some(EntityType::PigFood) => {field.set_entity(&mut commands, &sprites, EntityType::AllFood, tile_pos_x, tile_pos_y);}
-                                        Some(EntityType::AllFood) => {field.set_entity(&mut commands, &sprites, EntityType::None, tile_pos_x, tile_pos_y);}
-                                        Some(EntityType::WagonFood) => {field.set_entity(&mut commands, &sprites, EntityType::None, tile_pos_x, tile_pos_y);}
-                                        _ => {field.set_entity(&mut commands, &sprites, EntityType::Chicken, tile_pos_x, tile_pos_y);}
-                                    }
-                                }
                             }
                         }
                         _ => {}
@@ -2256,7 +2258,7 @@ pub fn saving_system(
             SaveStage::Loading => {
                 println!("LOADING {}", saving.save.to_owned());
                 if let Ok(mut cursor) = q_cursor.get_single_mut() {
-                    cursor.holding = EntityType::None;
+                    cursor.holding = GameObjectType::None;
                 }
                 if let Some(loaded_weather) = saving.weather {
                     weather.weather = loaded_weather;
@@ -2386,7 +2388,7 @@ pub fn saving_system(
                 if saving.quicksaves.len() > 1 {
                     saving.quicksaves.pop();
                     if let Ok(mut cursor) = q_cursor.get_single_mut() {
-                        cursor.holding = EntityType::None;
+                        cursor.holding = GameObjectType::None;
                     }
                     if let Some((save_string, savedsimulation)) = saving.quicksaves.last() {
                         if let Ok(save) = serde_json::from_str::<SaveFile>(&save_string) {

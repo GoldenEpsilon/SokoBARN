@@ -41,14 +41,40 @@ pub enum GameState {
 pub struct Cursor {
     pub holding: GameObjectType,
     pub drag_drop: CursorState,
+    pub painting: bool,
     pub starting_pos: Vec2,
     pub pos: Vec2
 }
 
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum GameObjectType {
     None,
     Entity(EntityType),
     Tile(TileType)
+}
+impl GameObjectType {
+    pub fn icon_atlas(&self, sprites: &Res<Sprites>) -> Handle<TextureAtlas>{
+        match self {
+            GameObjectType::Entity(entity) => {
+                return entity.icon_atlas(sprites);
+            }
+            GameObjectType::Tile(tile) => {
+                return tile.icon_atlas(sprites);
+            }
+            _ => sprites.sprites["Chicken"].clone(),
+        }
+    }
+    pub fn icon_index(&self) -> usize{
+        match self {
+            GameObjectType::Entity(entity) => {
+                return entity.icon_index();
+            }
+            GameObjectType::Tile(tile) => {
+                return tile.icon_index();
+            }
+            _ => 0,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
@@ -180,7 +206,7 @@ fn main() {
         .add_systems(Update, weather_system.run_if(in_state(GameState::Gameplay)))
 
         //Cursor Controls
-        .add_systems(Update, (mouse_controls, apply_deferred).chain().run_if(in_state(GameState::Gameplay)))
+        .add_systems(Update, (mouse_controls).chain().run_if(in_state(GameState::Gameplay)))
 
         //Post Update Visuals
         .add_systems(PostUpdate, ((ditch_system, fence_system).run_if(in_state(GameState::Gameplay).or_else(in_state(GameState::Pause))), animation_system, effect_system, resize_system, apply_deferred).chain())
@@ -482,7 +508,7 @@ fn setup(
         },
         z_index: ZIndex::Global(15),
         ..default()
-    }, Cursor{holding: GameObjectType::None, drag_drop: CursorState::Idle, starting_pos: Vec2::splat(-100.0), pos: Vec2::splat(-100.0)})
+    }, Cursor{holding: GameObjectType::None, drag_drop: CursorState::Idle, painting: false, starting_pos: Vec2::splat(-100.0), pos: Vec2::splat(-100.0)})
     ).with_children(|parent| {
         parent.spawn((AtlasImageBundle {
             texture_atlas: texture_atlases.add(TextureAtlas::from_grid(asset_server.load("Sprites/Misc/sokobarn-Flags.png"), Vec2::new(32.0, 32.0), 4, 24, None, None)),
@@ -597,9 +623,10 @@ fn resize_system(mut object_set: ParamSet<(
 pub fn cursor(
     q_windows: Query<&Window, With<PrimaryWindow>>, 
     mut q_cursor: Query<(&mut Cursor, &mut Style, &Children)>, 
-    mut q_held_item: Query<(&CursorObj, &mut UiTextureAtlasImage, &mut Visibility)>, 
+    mut q_held_item: Query<(&CursorObj, &mut UiTextureAtlasImage, &mut Handle<TextureAtlas>, &mut Visibility)>, 
     buttons: Res<Input<MouseButton>>,
-    ui_scale: Res<UiScale>,){
+    ui_scale: Res<UiScale>,
+    sprites: Res<Sprites>,){
     if let Ok(window) = q_windows.get_single() {
         if let Some(position) = window.cursor_position() {
             if let Ok((mut cursor, mut style, children)) = q_cursor.get_single_mut() {
@@ -612,17 +639,17 @@ pub fn cursor(
                 }
                 
                 for &child in children.iter() {
-                    if let Ok((obj_type, mut sprite, mut visible)) = q_held_item.get_mut(child) {
+                    if let Ok((obj_type, mut sprite, mut atlas, mut visible)) = q_held_item.get_mut(child) {
                         match obj_type.index {
                             0 => {
-                                if cursor.holding == EntityType::None {
+                                if cursor.holding == GameObjectType::None {
                                     if buttons.pressed(MouseButton::Left) || buttons.pressed(MouseButton::Right) {
                                         sprite.index = 1;
                                     }else{
                                         sprite.index = 0;
                                     }
                                 } else {
-                                    if (buttons.pressed(MouseButton::Left) || buttons.pressed(MouseButton::Right)) != (cursor.drag_drop == CursorState::Idle) {
+                                    if (buttons.pressed(MouseButton::Left) || buttons.pressed(MouseButton::Right)) != (cursor.drag_drop == CursorState::Idle) || cursor.drag_drop == CursorState::Placing {
                                         sprite.index = 3;
                                     }else{
                                         sprite.index = 2;
@@ -633,11 +660,14 @@ pub fn cursor(
                                 *visible = Visibility::Visible;
                                 
                                 match cursor.holding {
-                                    EntityType::ChickenFood => {sprite.index = 0;}
-                                    EntityType::HorseFood => {sprite.index = 1;}
-                                    EntityType::PigFood => {sprite.index = 2;}
-                                    EntityType::AllFood => {sprite.index = 3;}
-                                    EntityType::WagonFood => {sprite.index = 4;}
+                                    GameObjectType::Entity(entity) => {
+                                        *atlas = entity.texture_atlas(&sprites);
+                                        sprite.index = entity.texture_index();
+                                    }
+                                    GameObjectType::Tile(tile) => {
+                                        *atlas = tile.icon_atlas(&sprites);
+                                        sprite.index = tile.icon_index();
+                                    }
                                     _ => {
                                         *visible = Visibility::Hidden;
                                     }

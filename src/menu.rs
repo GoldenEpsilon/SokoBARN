@@ -114,8 +114,8 @@ pub enum ButtonEffect{
     Play,
     Quit,
     Settings,
-    PickUp(EntityType, bool),
-    Place(TileType),
+    PickUp(GameObjectType, bool),
+    Paint(GameObjectType),
     Start,
     Save,
     Load,
@@ -1055,42 +1055,34 @@ pub fn game_ui_setup(mut commands: Commands,
     }
     
     let buttons = if field.editor_mode {
-        /*vec![
-            ButtonEffect::PickUp(EntityType::ChickenFood, true), 
-            ButtonEffect::PickUp(EntityType::HorseFood, true),
-            ButtonEffect::PickUp(EntityType::PigFood, true),
-            ButtonEffect::PickUp(EntityType::AllFood, true),
-            ButtonEffect::PickUp(EntityType::Chicken, false),
-            ButtonEffect::PickUp(EntityType::Pig, false),
-            ButtonEffect::PickUp(EntityType::Horse, false),
-            ButtonEffect::PickUp(EntityType::Goat, false),
-            ButtonEffect::PickUp(EntityType::Wagon, false),
-            ButtonEffect::None,
-            ButtonEffect::EditorPageLeft,
-            ButtonEffect::EditorPageRight,
-        ]*/
         vec![
-            ButtonEffect::Place(TileType::Grass), 
-            ButtonEffect::Place(TileType::Fence), 
-            ButtonEffect::Place(TileType::Rocks), 
-            ButtonEffect::Place(TileType::Mud), 
-            ButtonEffect::Place(TileType::MuddyRocks), 
-            ButtonEffect::Place(TileType::Ditch), 
-            ButtonEffect::Place(TileType::Corral), 
-            ButtonEffect::Place(TileType::ChickenPen), 
-            //ButtonEffect::Place(TileType::PigPen), 
-            //ButtonEffect::Place(TileType::GoatPen), 
-            //ButtonEffect::Place(TileType::HorsePen), 
-            //ButtonEffect::None,
-            ButtonEffect::EditorPageLeft,
-            ButtonEffect::EditorPageRight,
+            ButtonEffect::Paint(GameObjectType::Entity(EntityType::ChickenFood)), 
+            ButtonEffect::Paint(GameObjectType::Entity(EntityType::HorseFood)),
+            ButtonEffect::Paint(GameObjectType::Entity(EntityType::PigFood)),
+            ButtonEffect::Paint(GameObjectType::Entity(EntityType::AllFood)),
+            ButtonEffect::Paint(GameObjectType::Entity(EntityType::Chicken)),
+            ButtonEffect::Paint(GameObjectType::Entity(EntityType::Pig)),
+            ButtonEffect::Paint(GameObjectType::Entity(EntityType::Horse)),
+            ButtonEffect::Paint(GameObjectType::Entity(EntityType::Goat)),
+            ButtonEffect::Paint(GameObjectType::Entity(EntityType::Wagon)),
+            ButtonEffect::Paint(GameObjectType::Tile(TileType::Grass)), 
+            ButtonEffect::Paint(GameObjectType::Tile(TileType::Fence)), 
+            ButtonEffect::Paint(GameObjectType::Tile(TileType::Rocks)), 
+            ButtonEffect::Paint(GameObjectType::Tile(TileType::Mud)), 
+            ButtonEffect::Paint(GameObjectType::Tile(TileType::MuddyRocks)), 
+            ButtonEffect::Paint(GameObjectType::Tile(TileType::Ditch)), 
+            ButtonEffect::Paint(GameObjectType::Tile(TileType::Corral)), 
+            ButtonEffect::Paint(GameObjectType::Tile(TileType::ChickenPen)), 
+            ButtonEffect::Paint(GameObjectType::Tile(TileType::PigPen)), 
+            ButtonEffect::Paint(GameObjectType::Tile(TileType::GoatPen)), 
+            ButtonEffect::Paint(GameObjectType::Tile(TileType::HorsePen)), 
         ]
     } else {
         vec![
-            ButtonEffect::PickUp(EntityType::ChickenFood, true), 
-            ButtonEffect::PickUp(EntityType::HorseFood, true),
-            ButtonEffect::PickUp(EntityType::PigFood, true),
-            ButtonEffect::PickUp(EntityType::AllFood, true),
+            ButtonEffect::PickUp(GameObjectType::Entity(EntityType::ChickenFood), true), 
+            ButtonEffect::PickUp(GameObjectType::Entity(EntityType::HorseFood), true),
+            ButtonEffect::PickUp(GameObjectType::Entity(EntityType::PigFood), true),
+            ButtonEffect::PickUp(GameObjectType::Entity(EntityType::AllFood), true),
         ]
     };
 
@@ -1157,8 +1149,10 @@ pub fn game_ui_setup(mut commands: Commands,
                             smallish_text_style.to_owned()
                         ), RoundCounter));
                     });
-                    for button in buttons {
-                        match button {
+                    let buttoncount = buttons.len();
+                    let buttonlist = &buttons[0..(if buttoncount > 9 {8} else {10})];
+                    for button in buttonlist {
+                        match *button {
                             ButtonEffect::PickUp(entity_type, limited) => {
                                 parent.spawn((ButtonBundle {
                                     style: Style {
@@ -1179,8 +1173,8 @@ pub fn game_ui_setup(mut commands: Commands,
                                     ..default()
                                 })).with_children(|parent| {
                                     parent.spawn(AtlasImageBundle {
-                                        texture_atlas: entity_type.texture_atlas(&sprites),
-                                        texture_atlas_image: entity_type.texture_index(),
+                                        texture_atlas: entity_type.icon_atlas(&sprites),
+                                        texture_atlas_image: UiTextureAtlasImage{index:entity_type.icon_index(),..default()},
                                         style: Style {
                                             width: Val::Percent(100.0),
                                             height: Val::Percent(100.0),
@@ -1191,23 +1185,25 @@ pub fn game_ui_setup(mut commands: Commands,
                                         ..Default::default()
                                     });
                                     if limited {
-                                        parent.spawn((AtlasImageBundle {
-                                            texture_atlas: sprites.sprites["Disabled"].to_owned(),
-                                            texture_atlas_image: UiTextureAtlasImage{index:0,..default()},
-                                            style: Style {
-                                                width: Val::Percent(100.0),
-                                                height: Val::Percent(100.0),
-                                                position_type: PositionType::Absolute,
+                                        if let GameObjectType::Entity(entity) = entity_type {
+                                            parent.spawn((AtlasImageBundle {
+                                                texture_atlas: sprites.sprites["Disabled"].to_owned(),
+                                                texture_atlas_image: UiTextureAtlasImage{index:0,..default()},
+                                                style: Style {
+                                                    width: Val::Percent(100.0),
+                                                    height: Val::Percent(100.0),
+                                                    position_type: PositionType::Absolute,
+                                                    ..Default::default()
+                                                },
+                                                visibility: Visibility::Hidden,
+                                                background_color: Color::WHITE.into(),
                                                 ..Default::default()
-                                            },
-                                            visibility: Visibility::Hidden,
-                                            background_color: Color::WHITE.into(),
-                                            ..Default::default()
-                                        }, ButtonDisabled { entity: entity_type }));
+                                            }, ButtonDisabled { entity: entity }));
+                                        }
                                     }
                                 });
                             }
-                            ButtonEffect::Place(tile_type) => {
+                            ButtonEffect::Paint(tile_type) => {
                                 parent.spawn((ButtonBundle {
                                     style: Style {
                                         width: Val::Px(TILE_SIZE),
@@ -1220,7 +1216,7 @@ pub fn game_ui_setup(mut commands: Commands,
                                     ..default()
                                 }, 
                                 MenuButton{
-                                    button_effect: ButtonEffect::Place(tile_type),
+                                    button_effect: ButtonEffect::Paint(tile_type),
                                     level: None,
                                     hovering: false, 
                                     hover_time: 0.0,
@@ -1228,7 +1224,7 @@ pub fn game_ui_setup(mut commands: Commands,
                                 })).with_children(|parent| {
                                     parent.spawn(AtlasImageBundle {
                                         texture_atlas: tile_type.icon_atlas(&sprites),
-                                        texture_atlas_image: tile_type.icon_texture_index(),
+                                        texture_atlas_image: UiTextureAtlasImage{index:tile_type.icon_index(),..default()},
                                         style: Style {
                                             width: Val::Percent(100.0),
                                             height: Val::Percent(100.0),
@@ -1238,56 +1234,6 @@ pub fn game_ui_setup(mut commands: Commands,
                                         background_color: Color::WHITE.into(),
                                         ..Default::default()
                                     });
-                                });
-                            }
-                            ButtonEffect::EditorPageLeft => {
-                                parent.spawn((ButtonBundle {
-                                    style: Style {
-                                        width: Val::Px(TILE_SIZE),
-                                        height: Val::Px(TILE_SIZE),
-                                        justify_content: JustifyContent::Center,
-                                        align_items: AlignItems::Center,
-                                        ..default()
-                                    },
-                                    background_color: Color::NONE.into(),
-                                    ..default()
-                                }, 
-                                MenuButton{
-                                    button_effect: ButtonEffect::EditorPageLeft,
-                                    level: None,
-                                    hovering: false, 
-                                    hover_time: 0.0,
-                                    ..default()
-                                })).with_children(|parent| {
-                                    parent.spawn(TextBundle::from_section(
-                                        "<",
-                                        text_style.to_owned()
-                                    ));
-                                });
-                            }
-                            ButtonEffect::EditorPageRight => {
-                                parent.spawn((ButtonBundle {
-                                    style: Style {
-                                        width: Val::Px(TILE_SIZE),
-                                        height: Val::Px(TILE_SIZE),
-                                        justify_content: JustifyContent::Center,
-                                        align_items: AlignItems::Center,
-                                        ..default()
-                                    },
-                                    background_color: Color::NONE.into(),
-                                    ..default()
-                                }, 
-                                MenuButton{
-                                    button_effect: ButtonEffect::EditorPageRight,
-                                    level: None,
-                                    hovering: false, 
-                                    hover_time: 0.0,
-                                    ..default()
-                                })).with_children(|parent| {
-                                    parent.spawn(TextBundle::from_section(
-                                        ">",
-                                        text_style.to_owned()
-                                    ));
                                 });
                             }
                             _ => {
@@ -1304,6 +1250,54 @@ pub fn game_ui_setup(mut commands: Commands,
                                 });
                             }
                         }
+                    }
+                    if buttoncount > 9 {
+                        parent.spawn((ButtonBundle {
+                            style: Style {
+                                width: Val::Px(TILE_SIZE),
+                                height: Val::Px(TILE_SIZE),
+                                justify_content: JustifyContent::Center,
+                                align_items: AlignItems::Center,
+                                ..default()
+                            },
+                            background_color: Color::NONE.into(),
+                            ..default()
+                        }, 
+                        MenuButton{
+                            button_effect: ButtonEffect::EditorPageLeft,
+                            level: None,
+                            hovering: false, 
+                            hover_time: 0.0,
+                            ..default()
+                        })).with_children(|parent| {
+                            parent.spawn(TextBundle::from_section(
+                                "<",
+                                text_style.to_owned()
+                            ));
+                        });
+                        parent.spawn((ButtonBundle {
+                            style: Style {
+                                width: Val::Px(TILE_SIZE),
+                                height: Val::Px(TILE_SIZE),
+                                justify_content: JustifyContent::Center,
+                                align_items: AlignItems::Center,
+                                ..default()
+                            },
+                            background_color: Color::NONE.into(),
+                            ..default()
+                        }, 
+                        MenuButton{
+                            button_effect: ButtonEffect::EditorPageRight,
+                            level: None,
+                            hovering: false, 
+                            hover_time: 0.0,
+                            ..default()
+                        })).with_children(|parent| {
+                            parent.spawn(TextBundle::from_section(
+                                ">",
+                                text_style.to_owned()
+                            ));
+                        });
                     }
                 }).with_children(|parent| {
                     parent.spawn((ButtonBundle {
@@ -1559,26 +1553,30 @@ pub fn button_system(
                     ButtonEffect::PickUp(pickup_object, limited) => {
                         if let Ok(mut cursor) = cursor_q.get_single_mut() {
                             let mut can_pick = true;
-                            if limited {
-                                for entity in &entity_q {
-                                    if entity.entity_type == pickup_object {
-                                        can_pick = false;
-                                        break;
+                            if let GameObjectType::Entity(entity_type) = pickup_object {
+                                if limited {
+                                    for entity in &entity_q {
+                                        if entity.entity_type == entity_type {
+                                            can_pick = false;
+                                            break;
+                                        }
                                     }
                                 }
-                            }
-                            if can_pick {
-                                cursor.holding = GameObjectType::Entity(pickup_object);
-                                cursor.drag_drop = CursorState::Holding;
-                                cursor.starting_pos = cursor.pos;
+                                if can_pick {
+                                    cursor.holding = GameObjectType::Entity(entity_type);
+                                    cursor.drag_drop = CursorState::Holding;
+                                    cursor.starting_pos = cursor.pos;
+                                    cursor.painting = false;
+                                }
                             }
                         }
                     }
-                    ButtonEffect::Place(tile) => {
+                    ButtonEffect::Paint(paint_object) => {
                         if let Ok(mut cursor) = cursor_q.get_single_mut() {
-                            cursor.holding = GameObjectType::Tile(tile);
+                            cursor.holding = paint_object;
                             cursor.drag_drop = CursorState::Placing;
                             cursor.starting_pos = cursor.pos;
+                            cursor.painting = true;
                         }
                     }
                     ButtonEffect::Settings => {}
