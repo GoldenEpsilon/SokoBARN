@@ -38,6 +38,7 @@ pub struct ParText;
 #[derive(Resource)]
 pub struct MenuData {
     pub button_entities: Vec<Entity>,
+    pub menu_offset: usize,
 }
 
 #[derive(Resource)]
@@ -318,7 +319,7 @@ pub fn menu_setup(mut commands: Commands, asset_server: Res<AssetServer>, ui_ima
                 });
             }
         }).id()];
-    commands.insert_resource(MenuData { button_entities });
+    commands.insert_resource(MenuData { button_entities, menu_offset: 0 });
 }
 
 pub fn level_select_setup(
@@ -980,14 +981,52 @@ pub fn pause_menu_setup(mut commands: Commands, asset_server: Res<AssetServer>, 
         }).id()];
 }
 
+pub fn get_buttons(field: &Res<Field>) -> Vec<ButtonEffect> {
+    return if field.editor_mode {
+        vec![
+            ButtonEffect::Paint(GameObjectType::Entity(EntityType::Chicken)),
+            ButtonEffect::Paint(GameObjectType::Entity(EntityType::Pig)),
+            ButtonEffect::Paint(GameObjectType::Entity(EntityType::Horse)),
+            ButtonEffect::Paint(GameObjectType::Entity(EntityType::Goat)),
+            ButtonEffect::Paint(GameObjectType::Tile(TileType::ChickenPen)), 
+            ButtonEffect::Paint(GameObjectType::Tile(TileType::PigPen)), 
+            ButtonEffect::Paint(GameObjectType::Tile(TileType::GoatPen)), 
+            ButtonEffect::Paint(GameObjectType::Tile(TileType::HorsePen)), 
+
+            ButtonEffect::Paint(GameObjectType::Entity(EntityType::Wagon)),
+            ButtonEffect::Paint(GameObjectType::Tile(TileType::Corral)), 
+            ButtonEffect::Paint(GameObjectType::Tile(TileType::Grass)), 
+            ButtonEffect::Paint(GameObjectType::Tile(TileType::Mud)), 
+            ButtonEffect::Paint(GameObjectType::Tile(TileType::Rocks)), 
+            ButtonEffect::Paint(GameObjectType::Tile(TileType::MuddyRocks)), 
+            ButtonEffect::Paint(GameObjectType::Tile(TileType::Fence)), 
+            ButtonEffect::Paint(GameObjectType::Tile(TileType::Ditch)), 
+            
+            ButtonEffect::Paint(GameObjectType::Entity(EntityType::ChickenFood)), 
+            ButtonEffect::Paint(GameObjectType::Entity(EntityType::HorseFood)),
+            ButtonEffect::Paint(GameObjectType::Entity(EntityType::PigFood)),
+            ButtonEffect::Paint(GameObjectType::Entity(EntityType::AllFood)),
+        ]
+    } else {
+        vec![
+            ButtonEffect::PickUp(GameObjectType::Entity(EntityType::ChickenFood), true), 
+            ButtonEffect::PickUp(GameObjectType::Entity(EntityType::HorseFood), true),
+            ButtonEffect::PickUp(GameObjectType::Entity(EntityType::PigFood), true),
+            ButtonEffect::PickUp(GameObjectType::Entity(EntityType::AllFood), true),
+        ]
+    };
+}
+
 pub fn game_ui_setup(mut commands: Commands, 
     asset_server: Res<AssetServer>, 
     sprites: Res<Sprites>, 
     ui_images: Res<UIImages>, 
     mut menu_data: ResMut<MenuData>,
     mut tutorial: ResMut<Tutorial>,
-    field: Res<Field>,
+    field: Option<Res<Field>>,
+    mut reload_game_ui: ResMut<ReloadGameUI>,
     mut keyart_q: Query<&mut Visibility, With<KeyArt>>) {
+    *reload_game_ui = ReloadGameUI(false);
 
     if let Ok(mut visibility) = keyart_q.get_single_mut() {
         *visibility = Visibility::Hidden;
@@ -1012,7 +1051,7 @@ pub fn game_ui_setup(mut commands: Commands,
     let rightpanel = ui_images.sprites["UIRight"].to_owned();
     let bottompanel = ui_images.sprites["UIBottom"].to_owned();
 
-    if !tutorial.seen {
+    /*if !tutorial.seen {
         tutorial.seen = true;
         commands.spawn((NodeBundle {
             style: Style {
@@ -1052,39 +1091,11 @@ pub fn game_ui_setup(mut commands: Commands,
                 ));
             });
         });
+    }*/
+
+    for entity in &menu_data.button_entities {
+        commands.entity(*entity).despawn_recursive();
     }
-    
-    let buttons = if field.editor_mode {
-        vec![
-            ButtonEffect::Paint(GameObjectType::Entity(EntityType::ChickenFood)), 
-            ButtonEffect::Paint(GameObjectType::Entity(EntityType::HorseFood)),
-            ButtonEffect::Paint(GameObjectType::Entity(EntityType::PigFood)),
-            ButtonEffect::Paint(GameObjectType::Entity(EntityType::AllFood)),
-            ButtonEffect::Paint(GameObjectType::Entity(EntityType::Chicken)),
-            ButtonEffect::Paint(GameObjectType::Entity(EntityType::Pig)),
-            ButtonEffect::Paint(GameObjectType::Entity(EntityType::Horse)),
-            ButtonEffect::Paint(GameObjectType::Entity(EntityType::Goat)),
-            ButtonEffect::Paint(GameObjectType::Entity(EntityType::Wagon)),
-            ButtonEffect::Paint(GameObjectType::Tile(TileType::Grass)), 
-            ButtonEffect::Paint(GameObjectType::Tile(TileType::Fence)), 
-            ButtonEffect::Paint(GameObjectType::Tile(TileType::Rocks)), 
-            ButtonEffect::Paint(GameObjectType::Tile(TileType::Mud)), 
-            ButtonEffect::Paint(GameObjectType::Tile(TileType::MuddyRocks)), 
-            ButtonEffect::Paint(GameObjectType::Tile(TileType::Ditch)), 
-            ButtonEffect::Paint(GameObjectType::Tile(TileType::Corral)), 
-            ButtonEffect::Paint(GameObjectType::Tile(TileType::ChickenPen)), 
-            ButtonEffect::Paint(GameObjectType::Tile(TileType::PigPen)), 
-            ButtonEffect::Paint(GameObjectType::Tile(TileType::GoatPen)), 
-            ButtonEffect::Paint(GameObjectType::Tile(TileType::HorsePen)), 
-        ]
-    } else {
-        vec![
-            ButtonEffect::PickUp(GameObjectType::Entity(EntityType::ChickenFood), true), 
-            ButtonEffect::PickUp(GameObjectType::Entity(EntityType::HorseFood), true),
-            ButtonEffect::PickUp(GameObjectType::Entity(EntityType::PigFood), true),
-            ButtonEffect::PickUp(GameObjectType::Entity(EntityType::AllFood), true),
-        ]
-    };
 
     menu_data.button_entities = vec![
         commands.spawn(NodeBundle {
@@ -1149,8 +1160,9 @@ pub fn game_ui_setup(mut commands: Commands,
                             smallish_text_style.to_owned()
                         ), RoundCounter));
                     });
-                    let buttoncount = buttons.len();
-                    let buttonlist = &buttons[0..(if buttoncount > 9 {8} else {10})];
+                    let buttons = if let Some(ref f) = field {get_buttons(f)} else {vec![]};
+                    let buttoncount = buttons.len() - menu_data.menu_offset;
+                    let buttonlist = &buttons[menu_data.menu_offset..(menu_data.menu_offset + if buttoncount > 9 {8} else {buttoncount})];
                     for button in buttonlist {
                         match *button {
                             ButtonEffect::PickUp(entity_type, limited) => {
@@ -1270,10 +1282,18 @@ pub fn game_ui_setup(mut commands: Commands,
                             hover_time: 0.0,
                             ..default()
                         })).with_children(|parent| {
-                            parent.spawn(TextBundle::from_section(
-                                "<",
-                                text_style.to_owned()
-                            ));
+                            parent.spawn(AtlasImageBundle {
+                                texture_atlas: sprites.sprites["Arrow"].clone(),
+                                texture_atlas_image: UiTextureAtlasImage{index:3,..default()},
+                                style: Style {
+                                    width: Val::Percent(100.0),
+                                    height: Val::Percent(100.0),
+                                    position_type: PositionType::Absolute,
+                                    ..Default::default()
+                                },
+                                background_color: Color::WHITE.into(),
+                                ..Default::default()
+                            });
                         });
                         parent.spawn((ButtonBundle {
                             style: Style {
@@ -1293,11 +1313,82 @@ pub fn game_ui_setup(mut commands: Commands,
                             hover_time: 0.0,
                             ..default()
                         })).with_children(|parent| {
-                            parent.spawn(TextBundle::from_section(
-                                ">",
-                                text_style.to_owned()
-                            ));
+                            parent.spawn(AtlasImageBundle {
+                                texture_atlas: sprites.sprites["Arrow"].clone(),
+                                texture_atlas_image: UiTextureAtlasImage{index:1,..default()},
+                                style: Style {
+                                    width: Val::Percent(100.0),
+                                    height: Val::Percent(100.0),
+                                    position_type: PositionType::Absolute,
+                                    ..Default::default()
+                                },
+                                background_color: Color::WHITE.into(),
+                                ..Default::default()
+                            });
                         });
+                    } else {
+                        let mut i = buttoncount;
+                        while i < 8 {
+                            parent.spawn(ButtonBundle {
+                                style: Style {
+                                    width: Val::Px(TILE_SIZE),
+                                    height: Val::Px(TILE_SIZE),
+                                    justify_content: JustifyContent::Center,
+                                    align_items: AlignItems::Center,
+                                    ..default()
+                                },
+                                background_color: Color::NONE.into(),
+                                ..default()
+                            });
+                            i += 1;
+                        }
+                        if menu_data.menu_offset > 0 {
+                            parent.spawn((ButtonBundle {
+                                style: Style {
+                                    width: Val::Px(TILE_SIZE),
+                                    height: Val::Px(TILE_SIZE),
+                                    justify_content: JustifyContent::Center,
+                                    align_items: AlignItems::Center,
+                                    ..default()
+                                },
+                                background_color: Color::NONE.into(),
+                                ..default()
+                            }, 
+                            MenuButton{
+                                button_effect: ButtonEffect::EditorPageLeft,
+                                level: None,
+                                hovering: false, 
+                                hover_time: 0.0,
+                                ..default()
+                            })).with_children(|parent| {
+                                parent.spawn(AtlasImageBundle {
+                                    texture_atlas: sprites.sprites["Arrow"].clone(),
+                                    texture_atlas_image: UiTextureAtlasImage{index:3,..default()},
+                                    style: Style {
+                                        width: Val::Percent(100.0),
+                                        height: Val::Percent(100.0),
+                                        position_type: PositionType::Absolute,
+                                        ..Default::default()
+                                    },
+                                    background_color: Color::WHITE.into(),
+                                    ..Default::default()
+                                });
+                            });
+                        }
+                        while i < 10 {
+                            parent.spawn(ButtonBundle {
+                                style: Style {
+                                    width: Val::Px(TILE_SIZE),
+                                    height: Val::Px(TILE_SIZE),
+                                    justify_content: JustifyContent::Center,
+                                    align_items: AlignItems::Center,
+                                    ..default()
+                                },
+                                background_color: Color::NONE.into(),
+                                ..default()
+                            });
+                            i += 1;
+                        }
                     }
                 }).with_children(|parent| {
                     parent.spawn((ButtonBundle {
@@ -1454,14 +1545,6 @@ pub fn game_ui_setup(mut commands: Commands,
     ];
 }
 
-fn editor_ui_setup(mut commands: Commands, 
-    asset_server: Res<AssetServer>, 
-    sprites: Res<Sprites>, 
-    ui_images: Res<UIImages>, 
-    mut menu_data: ResMut<MenuData>,){
-    
-}
-
 pub fn button_system(
     mut commands: Commands, 
     mut interaction_query: Query<
@@ -1474,18 +1557,14 @@ pub fn button_system(
     mut disabler_q: Query<(&mut Visibility, &ButtonDisabled)>,
     entity_q: Query<&GameEntity>,
     screencover_q: Query<Entity, Or<(With<CreditsButton>, With<TutorialButton>)>>,
-    mut next_state: ResMut<NextState<GameState>>,
     time: Res<Time>,
-    mut saving: ResMut<SaveRes>,
-    mut simulating: ResMut<SimulateRes>,
-    mut reload_level_select: ResMut<ReloadLevelSelect>,
-    mut pause_menu_data: ResMut<PauseMenuData>,
-    mut app_exit_events: ResMut<Events<bevy::app::AppExit>>,
+    resmuts: (ResMut<NextState<GameState>>, ResMut<SaveRes>, ResMut<SimulateRes>, ResMut<ReloadLevelSelect>, ResMut<MenuData>, ResMut<PauseMenuData>, ResMut<ReloadGameUI>, ResMut<Events<bevy::app::AppExit>>, ResMut<WorldList>),
+    fieldopt: Option<Res<Field>>,
     mut cursor_q: Query<&mut Cursor>,
     mut round_counter_q: Query<&mut Text, With<RoundCounter>>,
-    mut world_data: ResMut<WorldList>,
     asset_server: Res<AssetServer>, 
 ) {
+    let (mut next_state, mut saving, mut simulating, mut reload_level_select, mut menu_data, mut pause_menu_data, mut reload_game_ui, mut app_exit_events, mut world_data) = resmuts;
     for (mut visibility, disabler) in &mut disabler_q {
         *visibility = Visibility::Hidden;
         for entity in &entity_q {
@@ -1649,8 +1728,16 @@ pub fn button_system(
                         }
                     }
                     ButtonEffect::EditorPageLeft => {
+                        menu_data.menu_offset = std::cmp::max(menu_data.menu_offset, 8) - 8;
+                        *reload_game_ui = ReloadGameUI(true);
                     }
                     ButtonEffect::EditorPageRight => {
+                        if let Some(ref field) = fieldopt {
+                            if menu_data.menu_offset + 8 < get_buttons(field).len() {
+                                menu_data.menu_offset += 8;
+                                *reload_game_ui = ReloadGameUI(true);
+                            }
+                        }
                     }
                     _ => {}
                 }
@@ -1691,28 +1778,30 @@ pub fn button_update_system(
 
 pub fn menu_cleanup(
     mut commands: Commands,
-    menu_data: Res<MenuData>,
+    mut menu_data: ResMut<MenuData>,
     mut reload_level_select: ResMut<ReloadLevelSelect>,
 ) {
     reload_level_select.reloading = false;
     for entity in &menu_data.button_entities {
         commands.entity(*entity).despawn_recursive();
     }
+    menu_data.button_entities = vec![];
 }
 
 pub fn pause_menu_cleanup(
     mut commands: Commands,
-    pause_menu_data: Res<PauseMenuData>
+    mut pause_menu_data: ResMut<PauseMenuData>
 ) {
     for entity in &pause_menu_data.button_entities {
         commands.entity(*entity).despawn_recursive();
     }
+    pause_menu_data.button_entities = vec![];
 }
 
 pub fn game_cleanup(
     mut commands: Commands,
     field: Res<Field>,
-    menu_data: Res<MenuData>,
+    mut menu_data: ResMut<MenuData>,
     mut simulating: ResMut<SimulateRes>,
     mut q_cursor: Query<&mut Cursor>, 
     rain_q: Query<Entity, With<Raindrop>>,
@@ -1737,6 +1826,7 @@ pub fn game_cleanup(
     for entity in &menu_data.button_entities {
         commands.entity(*entity).despawn_recursive();
     }
+    menu_data.menu_offset = 0;
     field.despawn_all(&mut commands);
     commands.remove_resource::<Field>();
 }

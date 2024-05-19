@@ -143,6 +143,11 @@ pub struct Tutorial {
 
 #[derive(Resource)]
 #[derive(Default)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+pub struct ReloadGameUI(bool);
+
+#[derive(Resource)]
+#[derive(Default)]
 pub struct GameMusic {
     songs: HashMap<String, Handle<AudioSource>>
 }
@@ -199,6 +204,9 @@ fn main() {
         //Par Text
         .add_systems(Update, par_text_system.run_if(resource_exists::<Field>()))
 
+        //Reload game UI if needed
+        .add_systems(Update, game_ui_setup.run_if(resource_equals(ReloadGameUI(true))))
+
         //Gameplay
         .add_systems(OnEnter(GameState::Gameplay), (setup_level.run_if(common_conditions::not(resource_exists::<Field>())), apply_deferred, saving_system, game_ui_setup).chain())
         .add_systems(Update, saving_system.run_if(in_state(GameState::Gameplay).or_else(in_state(GameState::Pause))))
@@ -222,10 +230,11 @@ fn setup(
 
     commands.insert_resource(SaveRes { saving: SaveStage::Idle, save: "level.skb".to_owned(), quicksaves: vec![], ..default() });
     commands.insert_resource(SimulateRes { simulating: false, rounds: 0, ..default() });
-    commands.insert_resource(MenuData { button_entities: vec![] });
+    commands.insert_resource(MenuData { button_entities: vec![], menu_offset: 0 });
     commands.insert_resource(PauseMenuData { button_entities: vec![], mode: PauseMenuMode::Pause });
     commands.insert_resource(Weather { raindrop_count: 800 /*400*/, ..default() });
     commands.insert_resource(ReloadLevelSelect{reloading: true});
+    commands.insert_resource(ReloadGameUI(false));
 
     let mut worlds = vec![];
 
@@ -466,6 +475,7 @@ fn setup(
     sprites.insert("Flags".to_owned(), texture_atlases.add(TextureAtlas::from_grid(asset_server.load("Sprites/Misc/sokobarn-Flags.png"), Vec2::new(32.0, 32.0), 4, 24, None, None)));
     sprites.insert("Medals".to_owned(), texture_atlases.add(TextureAtlas::from_grid(asset_server.load("Sprites/Misc/sokobarn-level-medals.png"), Vec2::new(36.0, 36.0), 4, 1, None, None)));
     sprites.insert("Working".to_owned(), texture_atlases.add(TextureAtlas::from_grid(asset_server.load("Sprites/Misc/sokobarn-working.png"), Vec2::new(28.0, 28.0), 2, 1, None, None)));
+    sprites.insert("TileIcons".to_owned(), texture_atlases.add(TextureAtlas::from_grid(asset_server.load("Sprites/Misc/sokobarn-TileIcons.png"), Vec2::new(28.0, 28.0), 15, 1, None, None)));
 
     commands.insert_resource(Sprites { sprites: sprites });
 
@@ -591,7 +601,7 @@ fn resize_system(mut object_set: ParamSet<(
                 x: (game_entity.location.x as f32 - TILE_OFFSET_X)*TILE_SIZE*size, 
                 y: (game_entity.location.y as f32 - TILE_OFFSET_Y)*TILE_SIZE*size, 
                 z: -(game_entity.location.y as f32) * 4.0 + -(game_entity.location.x as f32)*0.1 + game_entity.location.z as f32 
-            }, 0.2);
+            }, if transform.translation.z == -10000.0 {1.0} else {0.2});
         }
         for (mut transform, tile) in &mut object_set.p1().iter_mut() {
             transform.scale = Vec3::splat(size);

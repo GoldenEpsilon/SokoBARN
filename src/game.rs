@@ -1,5 +1,6 @@
 use crate::*;
 
+use bevy::ecs::component::TableStorage;
 use bevy::reflect::TypeUuid;
 use bevy::{prelude::*, reflect::TypePath};
 use bevy::audio::{Volume, VolumeLevel};
@@ -196,8 +197,8 @@ impl EntityType {
     pub fn texture_index(&self) -> usize{
         match self {
             EntityType::ChickenFood => 0,
-            EntityType::PigFood => 1,
-            EntityType::HorseFood => 2,
+            EntityType::HorseFood => 1,
+            EntityType::PigFood => 2,
             EntityType::AllFood => 3,
             EntityType::WagonFood => 4,
             _ => 0,
@@ -221,8 +222,8 @@ impl EntityType {
     pub fn icon_index(&self) -> usize{
         match self {
             EntityType::ChickenFood => 0,
-            EntityType::PigFood => 1,
-            EntityType::HorseFood => 2,
+            EntityType::HorseFood => 1,
+            EntityType::PigFood => 2,
             EntityType::AllFood => 3,
             EntityType::WagonFood => 4,
             _ => 0,
@@ -247,32 +248,155 @@ pub enum TileType {
     Corral,
 }
 
+pub struct TileData {
+    texture_atlas: Handle<TextureAtlas>,
+    sprite: TextureAtlasSprite,
+    z: usize,
+    depth: f32,
+}
+
 impl TileType {
+    pub fn tile_data(&self, sprites: &Res<Sprites>, x: usize, y: usize) -> (TileData, Vec<TileData>) {
+        let mut children = vec![];
+        let texture_atlas;
+        match self {
+            TileType::Grass => texture_atlas = sprites.sprites["Grass"].clone(),
+            TileType::Fence => texture_atlas = sprites.sprites["Grass"].clone(),
+            TileType::Rocks => texture_atlas = sprites.sprites["Rocks"].clone(),
+            TileType::Mud => texture_atlas = sprites.sprites["Mud"].clone(),
+            TileType::MuddyRocks => texture_atlas = sprites.sprites["MuddyRocks"].clone(),
+            TileType::Ditch => texture_atlas = sprites.sprites["Grass"].clone(),
+            TileType::ChickenPen => texture_atlas = sprites.sprites["Grass"].clone(),
+            TileType::PigPen => texture_atlas = sprites.sprites["Grass"].clone(),
+            TileType::GoatPen => texture_atlas = sprites.sprites["Grass"].clone(),
+            TileType::HorsePen => texture_atlas = sprites.sprites["Grass"].clone(),
+            TileType::Corral => texture_atlas = sprites.sprites["Grass"].clone(),
+        }
+
+        let z = match self {
+            TileType::Grass => 0,
+            TileType::Fence => 0,
+            TileType::Rocks => 20,
+            TileType::Mud => 10,
+            TileType::MuddyRocks => 15,
+            TileType::Ditch => 0,
+            TileType::ChickenPen => 0,
+            TileType::PigPen => 0,
+            TileType::GoatPen => 0,
+            TileType::HorsePen => 0,
+            TileType::Corral => 0,
+        };
+
+        match self {
+            TileType::Fence => {
+                children.push(TileData {
+                    texture_atlas: sprites.sprites["Fence"].clone(),
+                    sprite: TextureAtlasSprite::new(4),
+                    z: 0,
+                    depth: 30.0,
+                });
+                children.push(TileData {
+                    texture_atlas: sprites.sprites["Fence"].clone(),
+                    sprite: TextureAtlasSprite::new(1),
+                    z: 0,
+                    depth: 31.0,
+                });
+                children.push(TileData {
+                    texture_atlas: sprites.sprites["Fence"].clone(),
+                    sprite: TextureAtlasSprite::new(0),
+                    z: 0,
+                    depth: 31.0,
+                });
+                children.push(TileData {
+                    texture_atlas: sprites.sprites["Fence"].clone(),
+                    sprite: TextureAtlasSprite::new(3),
+                    z: 0,
+                    depth: 31.0,
+                });
+                children.push(TileData {
+                    texture_atlas: sprites.sprites["Fence"].clone(),
+                    sprite: TextureAtlasSprite::new(2),
+                    z: 0,
+                    depth: 31.0,
+                });
+            },
+            TileType::Ditch => {
+                children.push(TileData {
+                    texture_atlas: sprites.sprites["Ditch"].clone(),
+                    sprite: TextureAtlasSprite::new(0),
+                    z: 0,
+                    depth: 31.0,
+                });
+            },
+            TileType::ChickenPen | TileType::PigPen | TileType::GoatPen | TileType::HorsePen | TileType::Corral => {
+                let offset = match self {
+                    TileType::ChickenPen => 0,
+                    TileType::HorsePen => 1,
+                    TileType::PigPen => 2,
+                    TileType::GoatPen => 3,
+                    TileType::Corral => 4,
+                    _ => 0
+                };
+                children.push(TileData {
+                    texture_atlas: sprites.sprites["Pens"].clone(),
+                    sprite: TextureAtlasSprite::new(offset),
+                    z: 0,
+                    depth: 5.0,
+                });
+                children.push(TileData {
+                    texture_atlas: sprites.sprites["Pens"].clone(),
+                    sprite: TextureAtlasSprite::new(offset+5),
+                    z: 0,
+                    depth: 36.0,
+                });
+                children.push(TileData {
+                    texture_atlas: sprites.sprites["Pens"].clone(),
+                    sprite: TextureAtlasSprite::new(offset+5*2),
+                    z: 0,
+                    depth: 44.0,
+                });
+            },
+            _ => {}
+        }
+
+        let ret_val = (TileData {
+            texture_atlas: texture_atlas,
+            sprite: TextureAtlasSprite::new((x % 2) + 2 * (y % 2)),
+            z: z,
+            depth: 0.0,
+        }, children);
+
+        return ret_val;
+    }
     pub fn icon_atlas(&self, sprites: &Res<Sprites>) -> Handle<TextureAtlas> {
         match self {
-            TileType::Grass => sprites.sprites["Grass"].clone(),
-            TileType::Fence => sprites.sprites["Fence"].clone(),
-            TileType::Rocks => sprites.sprites["Rocks"].clone(),
-            TileType::Mud => sprites.sprites["Mud"].clone(),
-            TileType::MuddyRocks => sprites.sprites["MuddyRocks"].clone(),
-            TileType::Ditch => sprites.sprites["Ditch"].clone(),
-            TileType::ChickenPen => sprites.sprites["Pens"].clone(),
-            TileType::PigPen => sprites.sprites["Pens"].clone(),
-            TileType::GoatPen => sprites.sprites["Pens"].clone(),
-            TileType::HorsePen => sprites.sprites["Pens"].clone(),
-            TileType::Corral => sprites.sprites["Pens"].clone(),
+            TileType::Grass => sprites.sprites["TileIcons"].clone(),
+            TileType::Fence => sprites.sprites["TileIcons"].clone(),
+            TileType::Rocks => sprites.sprites["TileIcons"].clone(),
+            TileType::Mud => sprites.sprites["TileIcons"].clone(),
+            TileType::MuddyRocks => sprites.sprites["TileIcons"].clone(),
+            TileType::Ditch => sprites.sprites["TileIcons"].clone(),
+            TileType::ChickenPen => sprites.sprites["TileIcons"].clone(),
+            TileType::HorsePen => sprites.sprites["TileIcons"].clone(),
+            TileType::PigPen => sprites.sprites["TileIcons"].clone(),
+            TileType::GoatPen => sprites.sprites["TileIcons"].clone(),
+            TileType::Corral => sprites.sprites["TileIcons"].clone(),
             _ => sprites.sprites["Chicken"].clone(),
         }
     }
     pub fn icon_index(&self) -> usize{
         match self {
             TileType::Grass => 0,
-            TileType::Fence => 4,
-            TileType::ChickenPen => 5,
-            TileType::PigPen => 6,
-            TileType::GoatPen => 7,
-            TileType::HorsePen => 8,
-            TileType::Corral => 9,
+            TileType::Mud => 1,
+            TileType::MuddyRocks => 2,
+            TileType::Rocks => 3,
+            TileType::Ditch => 4,
+            TileType::Fence => 5,
+            TileType::ChickenPen => 9,
+            TileType::HorsePen => 10,
+            TileType::PigPen => 11,
+            TileType::GoatPen => 12,
+            TileType::Corral => 13,
             _ => 0,
         }
     }
@@ -424,326 +548,39 @@ impl Field {
     pub fn set_tile(&mut self, commands: &mut Commands, sprites: &Res<Sprites>, tile_type: TileType, x: usize, y: usize){
         if self.can_get_tile(x, y) {
             commands.entity(self.tiles[x][y].0).despawn_recursive();
-            match tile_type {
-                TileType::Grass => {
-                    self.tiles[x][y].0 = commands.spawn(
-                        TileBundle {
-                            tile: Tile { tile_type: TileType::Grass,
-                                location: Location { 
-                                    x: x,
-                                    y: y,
-                                    z: 0,
-                                },
-                            },
-                            sprite: SpriteSheetBundle {
-                                texture_atlas: sprites.sprites["Grass"].clone(),
-                                sprite: TextureAtlasSprite::new((x % 2) + 2 * (y % 2)),
-                                ..default()
-                            }
-                        }
-                    ).id()
-                }
-                TileType::Mud => {
-                    self.tiles[x][y].0 = commands.spawn(
-                        TileBundle {
-                            tile: Tile { tile_type: TileType::Mud,
-                                location: Location { 
-                                    x: x,
-                                    y: y,
-                                    z: 10,
-                                },
-                            },
-                            sprite: SpriteSheetBundle {
-                                texture_atlas: sprites.sprites["Mud"].clone(),
-                                sprite: TextureAtlasSprite::new((x % 2) + 2 * (y % 2)),
-                                ..default()
-                            }
-                        }
-                    ).id()
-                }
-                TileType::MuddyRocks => {
-                    self.tiles[x][y].0 = commands.spawn(
-                        TileBundle {
-                            tile: Tile { tile_type: TileType::MuddyRocks,
-                                location: Location { 
-                                    x: x,
-                                    y: y,
-                                    z: 15,
-                                },
-                            },
-                            sprite: SpriteSheetBundle {
-                                texture_atlas: sprites.sprites["MuddyRocks"].clone(),
-                                sprite: TextureAtlasSprite::new((x % 2) + 2 * (y % 2)),
-                                ..default()
-                            }
-                        }
-                    ).id()
-                }
-                TileType::Rocks => {
-                    self.tiles[x][y].0 = commands.spawn(
-                        TileBundle {
-                            tile: Tile { tile_type: TileType::Rocks,
-                                location: Location { 
-                                    x: x,
-                                    y: y,
-                                    z: 20,
-                                },
-                            },
-                            sprite: SpriteSheetBundle {
-                                texture_atlas: sprites.sprites["Rocks"].clone(),
-                                sprite: TextureAtlasSprite::new((x % 2) + 2 * (y % 2)),
-                                ..default()
-                            }
-                        }
-                    ).id()
-                }
-                TileType::Ditch => {
-                    self.tiles[x][y].0 = commands.spawn(
-                        TileBundle {
-                            tile: Tile { tile_type: TileType::Ditch,
-                                location: Location { 
-                                    x: x,
-                                    y: y,
-                                    z: 0,
-                                },
-                            },
-                            sprite: SpriteSheetBundle {
-                                texture_atlas: sprites.sprites["Grass"].clone(),
-                                sprite: TextureAtlasSprite::new((x % 2) + 2 * (y % 2)),
-                                ..default()
-                            }
-                        }
-                    ).with_children(|parent| {
-                        parent.spawn((
-                            SpriteSheetBundle {
-                                texture_atlas: sprites.sprites["Ditch"].clone(),
-                                sprite: TextureAtlasSprite::new(0),
-                                ..default()
-                            },
-                            Ditch,
-                            Depth { depth: 31.0 },
-                        ));
-                    }).id()
-                }
-                TileType::Fence => {
-                    self.spawn_fence(commands, &sprites, x, y);
-                }
-                TileType::Corral => {
-                    self.tiles[x][y].0 = commands.spawn(
-                        TileBundle {
-                            tile: Tile { tile_type: TileType::Corral,
-                                location: Location { 
-                                    x: x,
-                                    y: y,
-                                    z: 0,
-                                },
-                            },
-                            sprite: SpriteSheetBundle {
-                                texture_atlas: sprites.sprites["Grass"].clone(),
-                                sprite: TextureAtlasSprite::new((x % 2) + 2 * (y % 2)),
-                                ..default()
-                            }
-                        }
-                    ).with_children(|parent| {
-                        parent.spawn((
-                            SpriteSheetBundle {
-                                texture_atlas: sprites.sprites["Pens"].clone(),
-                                sprite: TextureAtlasSprite::new(4),
-                                ..default()
-                            },
-                            Depth { depth: 5.0 },
-                        ));
-                        parent.spawn((
-                            SpriteSheetBundle {
-                                texture_atlas: sprites.sprites["Pens"].clone(),
-                                sprite: TextureAtlasSprite::new(4+5),
-                                ..default()
-                            },
-                            Depth { depth: 36.0 },
-                        ));
-                        parent.spawn((
-                            SpriteSheetBundle {
-                                texture_atlas: sprites.sprites["Pens"].clone(),
-                                sprite: TextureAtlasSprite::new(4+5*2),
-                                ..default()
-                            },
-                            Depth { depth: 44.0 },
-                        ));
-                    }).id()
-                }
-                TileType::ChickenPen => {
-                    self.tiles[x][y].0 = commands.spawn(
-                        TileBundle {
-                            tile: Tile { tile_type: TileType::ChickenPen,
-                                location: Location { 
-                                    x: x,
-                                    y: y,
-                                    z: 0,
-                                },
-                            },
-                            sprite: SpriteSheetBundle {
-                                texture_atlas: sprites.sprites["Grass"].clone(),
-                                sprite: TextureAtlasSprite::new((x % 2) + 2 * (y % 2)),
-                                ..default()
-                            }
-                        }
-                    ).with_children(|parent| {
-                        parent.spawn((
-                            SpriteSheetBundle {
-                                texture_atlas: sprites.sprites["Pens"].clone(),
-                                sprite: TextureAtlasSprite::new(0),
-                                ..default()
-                            },
-                            Depth { depth: 5.0 },
-                        ));
-                        parent.spawn((
-                            SpriteSheetBundle {
-                                texture_atlas: sprites.sprites["Pens"].clone(),
-                                sprite: TextureAtlasSprite::new(0+5),
-                                ..default()
-                            },
-                            Depth { depth: 36.0 },
-                        ));
-                        parent.spawn((
-                            SpriteSheetBundle {
-                                texture_atlas: sprites.sprites["Pens"].clone(),
-                                sprite: TextureAtlasSprite::new(0+5*2),
-                                ..default()
-                            },
-                            Depth { depth: 44.0 },
-                        ));
-                    }).id()
-                }
-                TileType::HorsePen => {
-                    self.tiles[x][y].0 = commands.spawn(
-                        TileBundle {
-                            tile: Tile { tile_type: TileType::HorsePen,
-                                location: Location { 
-                                    x: x,
-                                    y: y,
-                                    z: 0,
-                                },
-                            },
-                            sprite: SpriteSheetBundle {
-                                texture_atlas: sprites.sprites["Grass"].clone(),
-                                sprite: TextureAtlasSprite::new((x % 2) + 2 * (y % 2)),
-                                ..default()
-                            }
-                        }
-                    ).with_children(|parent| {
-                        parent.spawn((
-                            SpriteSheetBundle {
-                                texture_atlas: sprites.sprites["Pens"].clone(),
-                                sprite: TextureAtlasSprite::new(1),
-                                ..default()
-                            },
-                            Depth { depth: 5.0 },
-                        ));
-                        parent.spawn((
-                            SpriteSheetBundle {
-                                texture_atlas: sprites.sprites["Pens"].clone(),
-                                sprite: TextureAtlasSprite::new(1+5),
-                                ..default()
-                            },
-                            Depth { depth: 36.0 },
-                        ));
-                        parent.spawn((
-                            SpriteSheetBundle {
-                                texture_atlas: sprites.sprites["Pens"].clone(),
-                                sprite: TextureAtlasSprite::new(1+5*2),
-                                ..default()
-                            },
-                            Depth { depth: 44.0 },
-                        ));
-                    }).id()
-                }
-                TileType::PigPen => {
-                    self.tiles[x][y].0 = commands.spawn(
-                        TileBundle {
-                            tile: Tile { tile_type: TileType::PigPen,
-                                location: Location { 
-                                    x: x,
-                                    y: y,
-                                    z: 0,
-                                },
-                            },
-                            sprite: SpriteSheetBundle {
-                                texture_atlas: sprites.sprites["Grass"].clone(),
-                                sprite: TextureAtlasSprite::new((x % 2) + 2 * (y % 2)),
-                                ..default()
-                            }
-                        }
-                    ).with_children(|parent| {
-                        parent.spawn((
-                            SpriteSheetBundle {
-                                texture_atlas: sprites.sprites["Pens"].clone(),
-                                sprite: TextureAtlasSprite::new(2),
-                                ..default()
-                            },
-                            Depth { depth: 5.0 },
-                        ));
-                        parent.spawn((
-                            SpriteSheetBundle {
-                                texture_atlas: sprites.sprites["Pens"].clone(),
-                                sprite: TextureAtlasSprite::new(2+5),
-                                ..default()
-                            },
-                            Depth { depth: 36.0 },
-                        ));
-                        parent.spawn((
-                            SpriteSheetBundle {
-                                texture_atlas: sprites.sprites["Pens"].clone(),
-                                sprite: TextureAtlasSprite::new(2+5*2),
-                                ..default()
-                            },
-                            Depth { depth: 44.0 },
-                        ));
-                    }).id()
-                }
-                TileType::GoatPen => {
-                    self.tiles[x][y].0 = commands.spawn(
-                        TileBundle {
-                            tile: Tile { tile_type: TileType::GoatPen,
-                                location: Location { 
-                                    x: x,
-                                    y: y,
-                                    z: 0,
-                                },
-                            },
-                            sprite: SpriteSheetBundle {
-                                texture_atlas: sprites.sprites["Grass"].clone(),
-                                sprite: TextureAtlasSprite::new((x % 2) + 2 * (y % 2)),
-                                ..default()
-                            }
-                        }
-                    ).with_children(|parent| {
-                        parent.spawn((
-                            SpriteSheetBundle {
-                                texture_atlas: sprites.sprites["Pens"].clone(),
-                                sprite: TextureAtlasSprite::new(3),
-                                ..default()
-                            },
-                            Depth { depth: 5.0 },
-                        ));
-                        parent.spawn((
-                            SpriteSheetBundle {
-                                texture_atlas: sprites.sprites["Pens"].clone(),
-                                sprite: TextureAtlasSprite::new(3+5),
-                                ..default()
-                            },
-                            Depth { depth: 36.0 },
-                        ));
-                        parent.spawn((
-                            SpriteSheetBundle {
-                                texture_atlas: sprites.sprites["Pens"].clone(),
-                                sprite: TextureAtlasSprite::new(3+5*2),
-                                ..default()
-                            },
-                            Depth { depth: 44.0 },
-                        ));
-                    }).id()
-                }
+            let (tile_data, children) = tile_type.tile_data(sprites, x, y);
+            let mut tile = commands.spawn((
+                TileBundle {
+                    tile: Tile { tile_type: tile_type,
+                        location: Location { 
+                            x: x,
+                            y: y,
+                            z: tile_data.z,
+                        },
+                    },
+                    sprite: SpriteSheetBundle {
+                        texture_atlas: tile_data.texture_atlas,
+                        sprite: tile_data.sprite,
+                        transform: Transform::from_xyz(-10000.0, -10000.0, -10000.0),
+                        ..default()
+                    }
+                }, 
+            ));
+            if tile_type == TileType::Fence {tile.insert(Fence);}
+            for child_tile in children {
+                tile.with_children(|parent| {
+                    let mut child = parent.spawn((
+                        SpriteSheetBundle {
+                            texture_atlas: child_tile.texture_atlas,
+                            sprite: child_tile.sprite,
+                            ..default()
+                        },
+                        Depth { depth: child_tile.depth },
+                    ));
+                    if tile_type == TileType::Ditch {child.insert(Ditch);}
+                });
             }
+            self.tiles[x][y].0 = tile.id();
         }
     }
 
@@ -795,6 +632,7 @@ impl Field {
                                     }
                                 ].clone(),
                                 sprite: TextureAtlasSprite::new(0),
+                                transform: Transform::from_xyz(-10000.0, -10000.0, -10000.0),
                                 ..default()
                             }
                         }
@@ -829,6 +667,7 @@ impl Field {
                                         _ => {3}
                                     }
                                 ),
+                                transform: Transform::from_xyz(-10000.0, -10000.0, -10000.0),
                                 ..default()
                             }
                         }
@@ -855,6 +694,7 @@ impl Field {
                             sprite: SpriteSheetBundle {
                                 texture_atlas: sprites.sprites["Wagon"].clone(),
                                 sprite: TextureAtlasSprite::new(0),
+                                transform: Transform::from_xyz(-10000.0, -10000.0, -10000.0),
                                 ..default()
                             }
                         }
@@ -886,82 +726,11 @@ impl Field {
                     sprite: SpriteSheetBundle {
                         texture_atlas: sprites.sprites["Flag"].clone(),
                         sprite: TextureAtlasSprite::new(index * 4),
+                        transform: Transform::from_xyz(-10000.0, -10000.0, -10000.0),
                         ..default()
                     }
                 }
             ).id());
-        }
-    }
-
-    fn spawn_fence(&mut self, commands: &mut Commands, sprites: &Res<Sprites>, x: usize, y: usize){
-        if self.can_get_tile(x, y) {
-            self.tiles[x][y].0 = commands.spawn((
-                TileBundle {
-                    tile: Tile { 
-                        tile_type: TileType::Fence,
-                        location: Location { 
-                            x: x,
-                            y: y,
-                            z: 0,
-                        },
-                    },
-                    sprite: SpriteSheetBundle {
-                        texture_atlas: sprites.sprites["Grass"].clone(),
-                        sprite: TextureAtlasSprite::new((x % 2) + 2 * (y % 2)),
-                        ..default()
-                    }
-                }, Fence
-                )
-            ).with_children(|parent| {
-                parent.spawn((
-                    SpriteSheetBundle {
-                        texture_atlas: sprites.sprites["Fence"].clone(),
-                        sprite: TextureAtlasSprite::new(4),
-                        ..default()
-                    },
-                    Depth { depth: 30.0 },
-                ));
-            }).with_children(|parent| {
-                parent.spawn((
-                    SpriteSheetBundle {
-                        texture_atlas: sprites.sprites["Fence"].clone(),
-                        sprite: TextureAtlasSprite::new(1),
-                        visibility: Visibility::Hidden,
-                        ..default()
-                    },
-                    Depth { depth: 31.0 },
-                ));
-            }).with_children(|parent| {
-                parent.spawn((
-                    SpriteSheetBundle {
-                        texture_atlas: sprites.sprites["Fence"].clone(),
-                        sprite: TextureAtlasSprite::new(0),
-                        visibility: Visibility::Hidden,
-                        ..default()
-                    },
-                    Depth { depth: 31.0 },
-                ));
-            }).with_children(|parent| {
-                parent.spawn((
-                    SpriteSheetBundle {
-                        texture_atlas: sprites.sprites["Fence"].clone(),
-                        sprite: TextureAtlasSprite::new(3),
-                        visibility: Visibility::Hidden,
-                        ..default()
-                    },
-                    Depth { depth: 31.0 },
-                ));
-            }).with_children(|parent| {
-                parent.spawn((
-                    SpriteSheetBundle {
-                        texture_atlas: sprites.sprites["Fence"].clone(),
-                        sprite: TextureAtlasSprite::new(2),
-                        visibility: Visibility::Hidden,
-                        ..default()
-                    },
-                    Depth { depth: 31.0 },
-                ));
-            }).id();
         }
     }
 
@@ -2092,8 +1861,13 @@ pub fn mouse_controls(
                     && (Vec2::distance(cursor.pos, cursor.starting_pos) < CURSOR_MIN_MOVE_DIST) {
                         cursor.drag_drop = CursorState::Placing
                     }
-                    if (!(buttons.pressed(MouseButton::Left) || buttons.pressed(MouseButton::Right)) && (cursor.drag_drop == CursorState::Holding)
-                    && (Vec2::distance(cursor.pos, cursor.starting_pos) > CURSOR_MIN_MOVE_DIST)) || (buttons.just_pressed(MouseButton::Left) && cursor.drag_drop == CursorState::Placing) {
+                    if buttons.just_pressed(MouseButton::Right) {
+                        cursor.holding = GameObjectType::None;
+                        cursor.drag_drop = CursorState::Idle;
+                    }
+                    if ((!(buttons.pressed(MouseButton::Left) || buttons.pressed(MouseButton::Right)) && (cursor.drag_drop == CursorState::Holding)) || 
+                    (buttons.pressed(MouseButton::Left) && cursor.drag_drop == CursorState::Placing))
+                    && (Vec2::distance(cursor.pos, cursor.starting_pos) > CURSOR_MIN_MOVE_DIST) {
                         if field.can_get_tile(tile_pos_x, tile_pos_y) {
                             if let GameObjectType::Entity(entity) = cursor.holding {
                                 if field.get_entity_type(tile_pos_x, tile_pos_y, &q_entity) == None {
@@ -2112,11 +1886,9 @@ pub fn mouse_controls(
                                     if !cursor.painting {cursor.holding = GameObjectType::None;}
                                 }
                             }
-                        } else if cursor.painting {
+                        } else {
                             cursor.holding = GameObjectType::None;
                         }
-                    }else if buttons.just_released(MouseButton::Left) && Vec2::distance(cursor.pos, cursor.starting_pos) < CURSOR_MIN_MOVE_DIST && cursor.drag_drop == CursorState::Placing {
-                        cursor.drag_drop = CursorState::Idle;
                     }else if cursor.holding == GameObjectType::None {
                         if buttons.just_pressed(MouseButton::Left) {
                             let food = field.get_entity_type(tile_pos_x, tile_pos_y, &q_entity);
@@ -2128,10 +1900,27 @@ pub fn mouse_controls(
                                         field.tiles[tile_pos_x][tile_pos_y].2 = None;
                                     }
                                     cursor.starting_pos = cursor.pos;
+                                    cursor.drag_drop = CursorState::Holding;
                                 }
-                                _ => {}
+                                None => {}
+                                _ => {
+                                    if field.editor_mode {
+                                        cursor.holding = GameObjectType::Entity(food.unwrap());
+                                        if let Some(old_entity) = field.tiles[tile_pos_x][tile_pos_y].3 {
+                                            commands.entity(old_entity).despawn_recursive();
+                                            field.tiles[tile_pos_x][tile_pos_y].3 = None;
+                                        }else if let Some(old_entity) = field.tiles[tile_pos_x][tile_pos_y].2 {
+                                            commands.entity(old_entity).despawn_recursive();
+                                            field.tiles[tile_pos_x][tile_pos_y].2 = None;
+                                        }
+                                        cursor.starting_pos = cursor.pos;
+                                        cursor.drag_drop = CursorState::Holding;
+                                        cursor.painting = false;
+                                    }
+                                }
                             }
-                            cursor.drag_drop = CursorState::Holding;
+                        } else {
+                            cursor.drag_drop = CursorState::Idle;
                         }
                     }
                 }
